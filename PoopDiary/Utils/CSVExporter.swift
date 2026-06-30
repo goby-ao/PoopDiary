@@ -14,7 +14,7 @@ enum CSVExporter {
 
         let csv = (["日期,状态,量,备注"] + rows).joined(separator: "\n")
         let safeNickname = nickname.replacingOccurrences(of: "/", with: "-")
-        let fileName = "\(safeNickname)-便便日记.csv"
+        let fileName = "\(safeNickname)-便便超人.csv"
         let url = FileManager.default.temporaryDirectory.appending(path: fileName)
         try csv.write(to: url, atomically: true, encoding: .utf8)
         return url

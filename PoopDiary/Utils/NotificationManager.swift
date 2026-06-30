@@ -17,7 +17,7 @@ enum NotificationManager {
         dateComponents.minute = minute
 
         let content = UNMutableNotificationContent()
-        content.title = "便便日记"
+        content.title = "便便超人"
         content.body = "今天的小星星等你来点亮～"
         content.sound = .default
 

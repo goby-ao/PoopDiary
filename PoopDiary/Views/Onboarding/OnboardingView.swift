@@ -18,7 +18,7 @@ struct OnboardingView: View {
                     .font(.system(size: 31, weight: .black, design: .rounded))
                     .multilineTextAlignment(.center)
 
-                Text("以后每次打卡，便便日记都会这样叫你")
+                Text("以后每次打卡，便便超人都会这样叫你")
                     .font(.headline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

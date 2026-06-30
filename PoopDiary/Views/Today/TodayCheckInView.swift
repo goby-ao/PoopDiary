@@ -27,7 +27,7 @@ struct TodayCheckInView: View {
             content(proxy: proxy)
         }
         .background(background)
-        .navigationTitle("便便日记")
+        .navigationTitle("便便超人")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -169,7 +169,6 @@ struct TodayCheckInView: View {
             Spacer(minLength: metrics.gap)
 
             amountSelector(height: metrics.amountHeight)
-                .disabled(viewModel.didPoop != true)
                 .opacity(viewModel.didPoop == true ? 1 : 0.42)
                 .frame(height: metrics.amountHeight)
 
@@ -262,6 +261,11 @@ struct TodayCheckInView: View {
                         isSelected: viewModel.didPoop == true && viewModel.amount == amount,
                         height: max(46, height - 36)
                     ) {
+                        // 量按钮自己兜底：即使用户刚点完「拉了」立刻点量，
+                        // 也不会被外层 disabled 状态吞掉点击。
+                        if viewModel.didPoop != true {
+                            viewModel.preparePoopSelection()
+                        }
                         viewModel.selectAmount(amount)
                     }
                 }
@@ -472,6 +476,8 @@ private struct CheckInChoiceButton: View {
     let action: () -> Void
 
     var body: some View {
+        let cornerRadius = min(height * 0.28, 26)
+
         Button(action: action) {
             HStack(spacing: 8) {
                 Text(emoji)
@@ -485,15 +491,16 @@ private struct CheckInChoiceButton: View {
             .frame(maxWidth: .infinity)
             .frame(height: height)
             .background(
-                RoundedRectangle(cornerRadius: min(height * 0.28, 26), style: .continuous)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(isSelected ? tint.opacity(0.92) : Color(uiColor: .secondarySystemGroupedBackground))
             )
             .foregroundStyle(isSelected ? .white : .primary)
             .overlay {
-                RoundedRectangle(cornerRadius: min(height * 0.28, 26), style: .continuous)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(isSelected ? .white.opacity(0.75) : tint.opacity(0.28), lineWidth: 2)
             }
             .shadow(color: isSelected ? tint.opacity(0.24) : .black.opacity(0.04), radius: 12, y: 7)
+            .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
@@ -507,26 +514,29 @@ private struct AmountButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            VStack(spacing: 3) {
-                Text(amount.emoji)
-                    .font(.system(size: min(height * 0.34, 25)))
+        let cornerRadius = min(height * 0.26, 18)
 
-                Text(amount.title)
-                    .font(.system(size: min(height * 0.22, 15), weight: .bold, design: .rounded))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: height)
-            .background(isSelected ? Color.poopAccent.opacity(0.9) : Color(uiColor: .tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: min(height * 0.26, 18), style: .continuous))
-            .foregroundStyle(isSelected ? .white : .primary)
-            .overlay {
-                RoundedRectangle(cornerRadius: min(height * 0.26, 18), style: .continuous)
-                    .stroke(isSelected ? .white.opacity(0.75) : Color.poopAccent.opacity(0.18), lineWidth: 1.5)
-            }
+        VStack(spacing: 3) {
+            Text(amount.emoji)
+                .font(.system(size: min(height * 0.34, 25)))
+
+            Text(amount.title)
+                .font(.system(size: min(height * 0.22, 15), weight: .bold, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+        .background(isSelected ? Color.poopAccent.opacity(0.9) : Color(uiColor: .tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .foregroundStyle(isSelected ? .white : .primary)
+        .overlay {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(isSelected ? .white.opacity(0.75) : Color.poopAccent.opacity(0.18), lineWidth: 1.5)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .onTapGesture(perform: action)
+        .accessibilityElement(children: .ignore)
+        .accessibilityAddTraits(.isButton)
         .accessibilityLabel(amount.title)
     }
 }
