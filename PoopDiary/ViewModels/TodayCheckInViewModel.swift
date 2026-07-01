@@ -74,10 +74,14 @@ final class TodayCheckInViewModel {
         }
     }
 
-    func loadToday(profileID: String, in context: ModelContext) {
+    func loadToday(profileID: String, in context: ModelContext, preserveDraft: Bool = true) {
         do {
             if let record = try PoopRecordStore.record(on: .now, profileID: profileID, in: context) {
                 apply(record: record, shouldTriggerReward: false)
+            } else if preserveDraft && hasPreselection {
+                // Tab 切回首页会触发 onAppear；如果孩子已经做了预选但还没长按确认，
+                // 不要因为本地暂时还没有记录就把预选清掉。
+                return
             } else {
                 didPoop = nil
                 amount = .none

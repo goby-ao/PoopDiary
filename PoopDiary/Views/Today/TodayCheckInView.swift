@@ -51,10 +51,10 @@ struct TodayCheckInView: View {
             midnightRefreshTask?.cancel()
         }
         .onChange(of: activeProfileID) { _, _ in
-            syncTodayState()
+            syncTodayState(preserveDraft: false)
         }
         .onChange(of: currentDayKey) { _, _ in
-            syncTodayState()
+            syncTodayState(preserveDraft: false)
         }
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
             currentDayKey = Calendar.poopDiary.dayKey(for: .now)
@@ -363,8 +363,8 @@ struct TodayCheckInView: View {
         }.count
     }
 
-    private func syncTodayState() {
-        viewModel.loadToday(profileID: activeProfileID, in: modelContext)
+    private func syncTodayState(preserveDraft: Bool = true) {
+        viewModel.loadToday(profileID: activeProfileID, in: modelContext, preserveDraft: preserveDraft)
     }
 
     private func beginFlushChoreography() {
@@ -400,14 +400,21 @@ struct TodayCheckInView: View {
         midnightRefreshTask?.cancel()
 
         let calendar = Calendar.poopDiary
-        let todayStart = calendar.startOfDay(for: .now)
+        let now = Date.now
+        let todayStart = calendar.startOfDay(for: now)
         guard let nextDay = calendar.date(byAdding: .day, value: 1, to: todayStart) else { return }
 
-        let delay = max(nextDay.timeIntervalSinceNow + 0.5, 1)
+        let delay = max(nextDay.timeIntervalSince(now) + 0.5, 1)
+        let delayNanoseconds = UInt64(min(delay, Double(UInt64.max) / 1_000_000_000) * 1_000_000_000)
         midnightRefreshTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(delay))
-            currentDayKey = Calendar.poopDiary.dayKey(for: .now)
-            syncTodayState()
+            try? await Task.sleep(nanoseconds: delayNanoseconds)
+
+            let nextDayKey = Calendar.poopDiary.dayKey(for: .now)
+            if nextDayKey != currentDayKey {
+                currentDayKey = nextDayKey
+                syncTodayState(preserveDraft: false)
+            }
+
             scheduleMidnightRefresh()
         }
     }
@@ -555,46 +562,48 @@ private struct HoldFlushConfirmButton: View {
     @State private var progressTask: Task<Void, Never>?
 
     var body: some View {
-        GeometryReader { proxy in
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
+        ZStack(alignment: .leading) {
+            Capsule()
+                .fill(Color(uiColor: .secondarySystemGroupedBackground))
 
+            GeometryReader { proxy in
                 Capsule()
                     .fill(Color.poopPrimary.gradient)
                     .frame(width: proxy.size.width * progress)
                     .animation(.timingCurve(0.33, 0, 0.2, 1, duration: 0.06), value: progress)
-
-                HStack(spacing: 8) {
-                    Image(systemName: isPressing ? "water.waves" : "hand.tap.fill")
-                        .font(.system(size: 17, weight: .black))
-
-                    Text(title)
-                        .font(.system(.headline, design: .rounded).weight(.black))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
-
-                    Spacer(minLength: 0)
-
-                    Text("\(Int((progress * 100).rounded()))%")
-                        .font(.caption.monospacedDigit().weight(.black))
-                        .opacity(isPressing ? 1 : 0.55)
-                }
-                .padding(.horizontal, 18)
-                .foregroundStyle(progress > 0.52 ? .white : .primary)
             }
-            .contentShape(Capsule())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        startHoldingIfNeeded()
-                    }
-                    .onEnded { _ in
-                        cancelIfNeeded()
-                    }
-            )
+
+            HStack(spacing: 8) {
+                Image(systemName: isPressing ? "water.waves" : "hand.tap.fill")
+                    .font(.system(size: 17, weight: .black))
+
+                Text(title)
+                    .font(.system(.headline, design: .rounded).weight(.black))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+
+                Spacer(minLength: 0)
+
+                Text("\(Int((progress * 100).rounded()))%")
+                    .font(.caption.monospacedDigit().weight(.black))
+                    .opacity(isPressing ? 1 : 0.55)
+            }
+            .padding(.horizontal, 18)
+            .foregroundStyle(progress > 0.52 ? .white : .primary)
         }
-        .frame(maxWidth: .infinity, maxHeight: 54)
+        .frame(maxWidth: .infinity)
+        .frame(height: 54)
+        .clipShape(Capsule())
+        .contentShape(Capsule())
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    startHoldingIfNeeded()
+                }
+                .onEnded { _ in
+                    cancelIfNeeded()
+                }
+        )
         .shadow(color: Color.poopAccent.opacity(isPressing ? 0.22 : 0.08), radius: 12, y: 7)
         .onDisappear {
             progressTask?.cancel()
