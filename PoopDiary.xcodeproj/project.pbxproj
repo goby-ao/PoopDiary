@@ -21,6 +21,8 @@
 		01A00000000000000000000C /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B00000000000000000000C /* StatsView.swift */; };
 		01A00000000000000000000D /* PoopMascotView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B00000000000000000000D /* PoopMascotView.swift */; };
 		01A00000000000000000000E /* CelebrationOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B00000000000000000000E /* CelebrationOverlay.swift */; };
+		01A000000000000000000025 /* CleanRitualOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000025 /* CleanRitualOverlay.swift */; };
+		01A000000000000000000027 /* PoopStompGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000027 /* PoopStompGameView.swift */; };
 		01A00000000000000000000F /* RewardStarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B00000000000000000000F /* RewardStarView.swift */; };
 		01A000000000000000000010 /* StatCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000010 /* StatCard.swift */; };
 		01A000000000000000000011 /* FeedbackState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000011 /* FeedbackState.swift */; };
@@ -42,6 +44,8 @@
 		01A000000000000000000021 /* AchievementViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000021 /* AchievementViews.swift */; };
 		01A000000000000000000022 /* RecordEntrySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000022 /* RecordEntrySheet.swift */; };
 		01A000000000000000000023 /* ImportRecordsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000023 /* ImportRecordsView.swift */; };
+		01A000000000000000000024 /* PoopBackupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000024 /* PoopBackupManager.swift */; };
+		01A000000000000000000026 /* PoopStompGameGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000026 /* PoopStompGameGate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -60,6 +64,8 @@
 		01B00000000000000000000C /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
 		01B00000000000000000000D /* PoopMascotView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoopMascotView.swift; sourceTree = "<group>"; };
 		01B00000000000000000000E /* CelebrationOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationOverlay.swift; sourceTree = "<group>"; };
+		01B000000000000000000025 /* CleanRitualOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanRitualOverlay.swift; sourceTree = "<group>"; };
+		01B000000000000000000027 /* PoopStompGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoopStompGameView.swift; sourceTree = "<group>"; };
 		01B00000000000000000000F /* RewardStarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewardStarView.swift; sourceTree = "<group>"; };
 		01B000000000000000000010 /* StatCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatCard.swift; sourceTree = "<group>"; };
 		01B000000000000000000011 /* FeedbackState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackState.swift; sourceTree = "<group>"; };
@@ -81,6 +87,8 @@
 		01B000000000000000000021 /* AchievementViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementViews.swift; sourceTree = "<group>"; };
 		01B000000000000000000022 /* RecordEntrySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordEntrySheet.swift; sourceTree = "<group>"; };
 		01B000000000000000000023 /* ImportRecordsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportRecordsView.swift; sourceTree = "<group>"; };
+		01B000000000000000000024 /* PoopBackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoopBackupManager.swift; sourceTree = "<group>"; };
+		01B000000000000000000026 /* PoopStompGameGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoopStompGameGate.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -162,6 +170,7 @@
 			children = (
 				01B00000000000000000000D /* PoopMascotView.swift */,
 				01B00000000000000000000E /* CelebrationOverlay.swift */,
+				01B000000000000000000025 /* CleanRitualOverlay.swift */,
 				01B00000000000000000000F /* RewardStarView.swift */,
 				01B000000000000000000010 /* StatCard.swift */,
 				01B000000000000000000011 /* FeedbackState.swift */,
@@ -178,6 +187,8 @@
 				01B000000000000000000014 /* DateText.swift */,
 				01B000000000000000000015 /* Haptics.swift */,
 				01B000000000000000000018 /* SoundManager.swift */,
+				01B000000000000000000024 /* PoopBackupManager.swift */,
+				01B000000000000000000026 /* PoopStompGameGate.swift */,
 				01B000000000000000000016 /* PoopRecordStore.swift */,
 				01B00000000000000000001B /* ProfileStore.swift */,
 				01B00000000000000000001C /* AchievementManager.swift */,
@@ -201,6 +212,7 @@
 			isa = PBXGroup;
 			children = (
 				01B000000000000000000009 /* TodayCheckInView.swift */,
+				01B000000000000000000027 /* PoopStompGameView.swift */,
 			);
 			path = Today;
 			sourceTree = "<group>";
@@ -332,6 +344,8 @@
 				01A00000000000000000000C /* StatsView.swift in Sources */,
 				01A00000000000000000000D /* PoopMascotView.swift in Sources */,
 				01A00000000000000000000E /* CelebrationOverlay.swift in Sources */,
+				01A000000000000000000025 /* CleanRitualOverlay.swift in Sources */,
+				01A000000000000000000027 /* PoopStompGameView.swift in Sources */,
 				01A00000000000000000000F /* RewardStarView.swift in Sources */,
 				01A000000000000000000010 /* StatCard.swift in Sources */,
 				01A000000000000000000011 /* FeedbackState.swift in Sources */,
@@ -350,6 +364,8 @@
 				01A000000000000000000021 /* AchievementViews.swift in Sources */,
 				01A000000000000000000022 /* RecordEntrySheet.swift in Sources */,
 				01A000000000000000000023 /* ImportRecordsView.swift in Sources */,
+				01A000000000000000000024 /* PoopBackupManager.swift in Sources */,
+				01A000000000000000000026 /* PoopStompGameGate.swift in Sources */,
 				01A000000000000000000016 /* PoopRecordStore.swift in Sources */,
 				01A000000000000000000017 /* SampleData.swift in Sources */,
 			);

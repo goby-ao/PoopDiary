@@ -94,7 +94,7 @@ struct StatsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            StatCard(title: "最爱星期", value: viewModel.favoriteWeekday(records: profileRecords), systemImage: "calendar.badge.heart", tint: .pink) {
+            StatCard(title: "最爱星期", value: viewModel.favoriteWeekday(records: profileRecords), systemImage: "calendar.circle.fill", tint: .pink) {
                 Text("历史频率最高")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)

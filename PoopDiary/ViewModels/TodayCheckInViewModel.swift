@@ -94,25 +94,26 @@ final class TodayCheckInViewModel {
         }
     }
 
+    @discardableResult
     func confirmSelection(
         profileID: String,
         in context: ModelContext,
         playFeedback: Bool = true
-    ) {
+    ) -> PoopRecord? {
         guard let didPoop else {
             errorMessage = "请先选今天的量"
             Haptics.play(.soft)
-            return
+            return nil
         }
 
         guard !didPoop || amount != .none else {
             errorMessage = "请先选今天的量"
             Haptics.play(.soft)
-            return
+            return nil
         }
 
         let normalizedAmount: PoopAmount = didPoop ? (amount == .none ? .normal : amount) : .none
-        save(
+        return save(
             didPoop: didPoop,
             amount: normalizedAmount,
             sound: .flush,
@@ -152,6 +153,7 @@ final class TodayCheckInViewModel {
         }
     }
 
+    @discardableResult
     private func save(
         didPoop: Bool,
         amount: PoopAmount,
@@ -160,7 +162,7 @@ final class TodayCheckInViewModel {
         profileID: String,
         playFeedback: Bool = true,
         in context: ModelContext
-    ) {
+    ) -> PoopRecord? {
         let shouldPlayReward = !hasCompletedToday
 
         do {
@@ -184,8 +186,10 @@ final class TodayCheckInViewModel {
             unlockAchievements(profileID: profileID, in: context)
 
             errorMessage = nil
+            return record
         } catch {
             errorMessage = "保存失败，请再点一次"
+            return nil
         }
     }
 

@@ -100,6 +100,16 @@ enum PoopRecordStore {
         return try context.fetch(descriptor)
     }
 
+    static func fetchAllRecords(in context: ModelContext) throws -> [PoopRecord] {
+        let descriptor = FetchDescriptor<PoopRecord>(
+            sortBy: [
+                SortDescriptor(\.profileID),
+                SortDescriptor(\.date, order: .reverse)
+            ]
+        )
+        return try context.fetch(descriptor)
+    }
+
     static func delete(_ record: PoopRecord, in context: ModelContext) throws {
         context.delete(record)
         try context.save()

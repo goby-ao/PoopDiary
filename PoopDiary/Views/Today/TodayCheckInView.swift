@@ -10,7 +10,11 @@ struct TodayCheckInView: View {
     @State private var currentDayKey = Calendar.poopDiary.dayKey(for: .now)
     @State private var midnightRefreshTask: Task<Void, Never>?
     @State private var activeFlush: FlushChoreographyRequest?
+    @State private var activeCleanRitual: CleanRitualRequest?
+    @State private var pendingStompGameSession: PoopStompGameSession?
+    @State private var activeStompGameSession: PoopStompGameSession?
     @State private var holdProgress: CGFloat = 0
+    @State private var cleanRitualPresentationTask: Task<Void, Never>?
     @AppStorage(AppPreferenceKey.childNickname) private var childNickname = "便便小超人"
     @AppStorage(AppPreferenceKey.activeProfileID) private var activeProfileID = ProfileStore.defaultProfileID
 
@@ -30,7 +34,7 @@ struct TodayCheckInView: View {
         .navigationTitle("便便超人")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 Button {
                     showingFeedbackSettings = true
                     InteractionFeedback.play(sound: .tap, haptic: .light)
@@ -43,12 +47,19 @@ struct TodayCheckInView: View {
         .sheet(isPresented: $showingFeedbackSettings) {
             FeedbackSettingsView()
         }
+        .fullScreenCover(item: $activeStompGameSession) { session in
+            PoopStompGameView(session: session) { result in
+                PoopStompGameGate.recordResult(result, for: session)
+                activeStompGameSession = nil
+            }
+        }
         .onAppear {
             syncTodayState()
             scheduleMidnightRefresh()
         }
         .onDisappear {
             midnightRefreshTask?.cancel()
+            cleanRitualPresentationTask?.cancel()
         }
         .onChange(of: activeProfileID) { _, _ in
             syncTodayState(preserveDraft: false)
@@ -73,13 +84,33 @@ struct TodayCheckInView: View {
             ZStack {
                 if let activeFlush {
                     FlushChoreographyOverlay(request: activeFlush) {
-                        viewModel.confirmSelection(profileID: activeProfileID, in: modelContext, playFeedback: false)
+                        let savedRecord = viewModel.confirmSelection(profileID: activeProfileID, in: modelContext, playFeedback: false)
                         withAnimation(.easeInOut(duration: 0.22)) {
                             self.activeFlush = nil
+                        }
+
+                        if activeFlush.didPoop, savedRecord != nil, viewModel.errorMessage == nil {
+                            prepareStompGameSession()
+                            scheduleCleanRitual(for: activeFlush)
                         }
                     }
                     .transition(.opacity)
                     .zIndex(9)
+                }
+
+                if let activeCleanRitual {
+                    CleanRitualOverlay(request: activeCleanRitual) {
+                        let shouldPresentGame = activeCleanRitual.unlocksStompGame
+                        withAnimation(.spring(response: 0.34, dampingFraction: 0.84)) {
+                            self.activeCleanRitual = nil
+                        }
+
+                        if shouldPresentGame {
+                            presentPendingStompGame()
+                        }
+                    }
+                    .transition(.opacity.combined(with: .scale(scale: 0.97)))
+                    .zIndex(11)
                 }
 
                 if let achievement = viewModel.unlockedAchievement {
@@ -389,11 +420,52 @@ struct TodayCheckInView: View {
 
     private func resetTodayRecord() {
         activeFlush = nil
+        activeCleanRitual = nil
+        pendingStompGameSession = nil
+        activeStompGameSession = nil
+        cleanRitualPresentationTask?.cancel()
         holdProgress = 0
 
         withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
             viewModel.resetTodayRecord(profileID: activeProfileID, in: modelContext)
         }
+    }
+
+    private func scheduleCleanRitual(for flush: FlushChoreographyRequest) {
+        cleanRitualPresentationTask?.cancel()
+
+        let request = CleanRitualRequest(
+            amount: flush.amount,
+            nickname: nickname,
+            unlocksStompGame: pendingStompGameSession != nil
+        )
+        cleanRitualPresentationTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(260))
+            guard !Task.isCancelled else { return }
+
+            withAnimation(.spring(response: 0.44, dampingFraction: 0.78)) {
+                activeCleanRitual = request
+            }
+        }
+    }
+
+    private func prepareStompGameSession() {
+        do {
+            pendingStompGameSession = try PoopStompGameGate.makeSessionIfEligible(
+                profileID: activeProfileID,
+                in: modelContext
+            )
+        } catch {
+            pendingStompGameSession = nil
+        }
+    }
+
+    private func presentPendingStompGame() {
+        guard let session = pendingStompGameSession else { return }
+
+        pendingStompGameSession = nil
+        PoopStompGameGate.markPlayed(session)
+        activeStompGameSession = session
     }
 
     private func scheduleMidnightRefresh() {
@@ -560,6 +632,7 @@ private struct HoldFlushConfirmButton: View {
     @State private var rejectedCurrentPress = false
     @State private var completedCurrentPress = false
     @State private var progressTask: Task<Void, Never>?
+    @State private var holdFeedbackTask: Task<Void, Never>?
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -607,6 +680,7 @@ private struct HoldFlushConfirmButton: View {
         .shadow(color: Color.poopAccent.opacity(isPressing ? 0.22 : 0.08), radius: 12, y: 7)
         .onDisappear {
             progressTask?.cancel()
+            stopHoldFeedback()
             onProgressChange(0)
         }
     }
@@ -626,12 +700,13 @@ private struct HoldFlushConfirmButton: View {
         progress = 0
         onProgressChange(0)
         progressTask?.cancel()
+        startHoldFeedback()
 
         progressTask = Task { @MainActor in
-            let steps = 20
+            let steps = 28
 
             for step in 1...steps {
-                try? await Task.sleep(for: .milliseconds(50))
+                try? await Task.sleep(for: .milliseconds(58))
                 guard !Task.isCancelled else { return }
 
                 let nextProgress = easeInOutCubic(CGFloat(step) / CGFloat(steps))
@@ -639,9 +714,9 @@ private struct HoldFlushConfirmButton: View {
                 onProgressChange(nextProgress)
 
                 // 蓄力过程中给渐强的触觉节奏，暗示冲水越来越近。
-                if step == 5 || step == 10 || step == 15 {
+                if step == 7 || step == 14 || step == 21 {
                     Haptics.play(.light)
-                } else if step == 18 {
+                } else if step == 26 {
                     Haptics.play(.medium)
                 }
             }
@@ -650,6 +725,8 @@ private struct HoldFlushConfirmButton: View {
             completedCurrentPress = true
             progress = 1
             onProgressChange(1)
+            stopHoldFeedback()
+            Haptics.success()
             onComplete()
             try? await Task.sleep(for: .milliseconds(180))
             progress = 0
@@ -667,12 +744,51 @@ private struct HoldFlushConfirmButton: View {
         guard isPressing else { return }
 
         progressTask?.cancel()
+        stopHoldFeedback()
         isPressing = false
         withAnimation(.spring(response: 0.32, dampingFraction: 0.62)) {
             progress = 0
             onProgressChange(0)
         }
         Haptics.play(.soft)
+    }
+
+    private func startHoldFeedback() {
+        holdFeedbackTask?.cancel()
+        SoundManager.shared.stopFlushGurgle()
+
+        let hasContinuousGurgle = SoundManager.shared.startFlushGurgle()
+        let hasContinuousRumble = Haptics.startFlushRumble()
+        holdFeedbackTask = Task { @MainActor in
+            var pulse = 0
+            Haptics.play(.soft)
+
+            while !Task.isCancelled {
+                if !hasContinuousGurgle && pulse.isMultiple(of: 2) {
+                    SoundManager.shared.playFlushGurglePulse(pulse)
+                }
+
+                if !hasContinuousRumble {
+                    if pulse.isMultiple(of: 3) {
+                        Haptics.play(.heavy)
+                    } else {
+                        Haptics.play(.medium)
+                    }
+                } else if pulse.isMultiple(of: 5) {
+                    Haptics.play(.light)
+                }
+
+                pulse += 1
+                try? await Task.sleep(for: .milliseconds(120))
+            }
+        }
+    }
+
+    private func stopHoldFeedback() {
+        holdFeedbackTask?.cancel()
+        holdFeedbackTask = nil
+        SoundManager.shared.stopFlushGurgle()
+        Haptics.stopFlushRumble()
     }
 }
 

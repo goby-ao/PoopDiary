@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct FeedbackSettingsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -16,8 +17,12 @@ struct FeedbackSettingsView: View {
     @State private var nicknameDraft = ""
     @State private var newProfileName = ""
     @State private var csvURL: URL?
+    @State private var backupDocument = PoopBackupDocument()
+    @State private var backupFileName = "PoopDiary-Backup"
     @State private var alertMessage: String?
     @State private var showingDeleteConfirm = false
+    @State private var showingBackupExporter = false
+    @State private var showingBackupImporter = false
 
     private var profiles: [ChildProfile] {
         ProfileStore.profiles(from: profilesJSON)
@@ -58,7 +63,7 @@ struct FeedbackSettingsView: View {
                 }
                 Button("取消", role: .cancel) {}
             } message: {
-                Text("只会删除当前档案的本地记录，不会影响其他孩子。")
+                Text("只会删除当前设备里当前孩子的记录，不会影响备份文件和其他孩子。")
             }
             .alert("提示", isPresented: Binding(
                 get: { alertMessage != nil },
@@ -67,6 +72,20 @@ struct FeedbackSettingsView: View {
                 Button("好") { alertMessage = nil }
             } message: {
                 Text(alertMessage ?? "")
+            }
+            .fileExporter(
+                isPresented: $showingBackupExporter,
+                document: backupDocument,
+                contentType: .json,
+                defaultFilename: backupFileName
+            ) { result in
+                handleBackupExportResult(result)
+            }
+            .fileImporter(
+                isPresented: $showingBackupImporter,
+                allowedContentTypes: [.json]
+            ) { result in
+                importBackup(result)
             }
         }
     }
@@ -119,6 +138,18 @@ struct FeedbackSettingsView: View {
                 ShareLink(item: csvURL) {
                     Label("分享 CSV", systemImage: "square.and.arrow.up.fill")
                 }
+            }
+
+            Button {
+                exportBackup()
+            } label: {
+                Label("备份到 iCloud Drive", systemImage: "icloud.and.arrow.up")
+            }
+
+            Button {
+                showingBackupImporter = true
+            } label: {
+                Label("从备份文件合并", systemImage: "icloud.and.arrow.down")
             }
 
             Button(role: .destructive) {
@@ -229,6 +260,67 @@ struct FeedbackSettingsView: View {
         } catch {
             alertMessage = "CSV 生成失败，请再试一次"
         }
+    }
+
+    private func exportBackup() {
+        do {
+            let records = try PoopRecordStore.fetchAllRecords(in: modelContext)
+            backupDocument = PoopBackupDocument(data: try PoopBackupManager.exportData(
+                profiles: profiles,
+                activeProfileID: activeProfileID,
+                fallbackNickname: ProfileStore.cleanNickname(childNickname),
+                records: records
+            ))
+            backupFileName = makeBackupFileName()
+            showingBackupExporter = true
+            InteractionFeedback.play(sound: .tap, haptic: .light)
+        } catch {
+            alertMessage = "备份生成失败，请再试一次"
+        }
+    }
+
+    private func handleBackupExportResult(_ result: Result<URL, Error>) {
+        switch result {
+        case .success:
+            alertMessage = "备份已保存"
+            InteractionFeedback.reward()
+        case .failure:
+            alertMessage = "备份保存失败，请再试一次"
+        }
+    }
+
+    private func importBackup(_ result: Result<URL, Error>) {
+        do {
+            let url = try result.get()
+            let summary = try PoopBackupManager.importBackup(
+                from: url,
+                currentProfiles: profiles,
+                in: modelContext
+            )
+            profilesJSON = ProfileStore.encodedProfiles(summary.profiles)
+            if let preferredActiveProfileID = summary.preferredActiveProfileID,
+               let active = ProfileStore.activeProfile(in: summary.profiles, activeProfileID: preferredActiveProfileID) {
+                activeProfileID = active.id
+                childNickname = active.nickname
+                nicknameDraft = active.nickname
+            } else if let first = summary.profiles.first {
+                activeProfileID = first.id
+                childNickname = first.nickname
+                nicknameDraft = first.nickname
+            }
+            alertMessage = summary.message
+            InteractionFeedback.reward()
+        } catch {
+            alertMessage = "备份导入失败，请确认选择的是便便超人备份文件"
+        }
+    }
+
+    private func makeBackupFileName() -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar.poopDiary
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmm"
+        return "PoopDiary-\(formatter.string(from: .now))"
     }
 
     private func deleteCurrentProfileRecords() {
