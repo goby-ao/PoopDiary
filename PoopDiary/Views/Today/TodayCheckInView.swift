@@ -15,8 +15,18 @@ struct TodayCheckInView: View {
     @State private var activeStompGameSession: PoopStompGameSession?
     @State private var holdProgress: CGFloat = 0
     @State private var cleanRitualPresentationTask: Task<Void, Never>?
+    @State private var pendingProfileSwitch: ChildProfile?
     @AppStorage(AppPreferenceKey.childNickname) private var childNickname = "便便小超人"
     @AppStorage(AppPreferenceKey.activeProfileID) private var activeProfileID = ProfileStore.defaultProfileID
+    @AppStorage(AppPreferenceKey.profilesJSON) private var profilesJSON = ""
+
+    private var profiles: [ChildProfile] {
+        ProfileStore.profiles(from: profilesJSON)
+    }
+
+    private var activeProfile: ChildProfile? {
+        ProfileStore.activeProfile(in: profiles, activeProfileID: activeProfileID)
+    }
 
     private var profileRecords: [PoopRecord] {
         records.filter { $0.profileID == activeProfileID }
@@ -73,6 +83,25 @@ struct TodayCheckInView: View {
             scheduleMidnightRefresh()
         }
         .animation(.spring(response: 0.42, dampingFraction: 0.84), value: todayRecord?.id)
+        .confirmationDialog(
+            "切换孩子？",
+            isPresented: Binding(
+                get: { pendingProfileSwitch != nil },
+                set: { if !$0 { pendingProfileSwitch = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let pendingProfileSwitch {
+                Button("切换到\(pendingProfileSwitch.nickname)") {
+                    activateProfile(pendingProfileSwitch)
+                }
+            }
+            Button("取消", role: .cancel) {
+                pendingProfileSwitch = nil
+            }
+        } message: {
+            Text("当前未完成的打卡选择会清空，已经保存的记录不受影响。")
+        }
         .alert("出错啦", isPresented: Binding(
             get: { viewModel.errorMessage != nil },
             set: { if !$0 { viewModel.errorMessage = nil } }
@@ -276,15 +305,74 @@ struct TodayCheckInView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
 
-            Text(record == nil ? "\(nickname)，今天拉粑粑了吗？" : "\(nickname)，今日小星星已点亮")
-                .font(.system(size: 29, weight: .black, design: .rounded))
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.primary)
-                .lineLimit(2)
-                .minimumScaleFactor(0.7)
-                .contentTransition(.opacity)
+            HStack(spacing: 8) {
+                profileSwitcher
+
+                Text(record == nil ? "今天拉粑粑了吗？" : "今日小星星已点亮")
+                    .font(.system(size: 25, weight: .black, design: .rounded))
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .contentTransition(.opacity)
+            }
+            .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var profileSwitcher: some View {
+        Menu {
+            ForEach(profiles) { profile in
+                Button {
+                    requestProfileSwitch(profile)
+                } label: {
+                    Label(
+                        profile.nickname,
+                        systemImage: profile.id == activeProfile?.id ? "checkmark.circle.fill" : "person.crop.circle"
+                    )
+                }
+                .disabled(profile.id == activeProfile?.id)
+            }
+
+            if !profiles.isEmpty {
+                Divider()
+            }
+
+            Button {
+                showingFeedbackSettings = true
+                InteractionFeedback.play(sound: .tap, haptic: .light)
+            } label: {
+                Label("管理孩子档案…", systemImage: "person.2.fill")
+            }
+        } label: {
+            HStack(spacing: 8) {
+                ProfileIdentityMark(profileID: activeProfile?.id ?? activeProfileID, nickname: nickname)
+                    .frame(width: 28, height: 28)
+
+                Text(nickname)
+                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                    .frame(maxWidth: 72, alignment: .leading)
+                    .contentTransition(.opacity)
+
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .black))
+                    .foregroundStyle(Color.poopAccent)
+                    .accessibilityHidden(true)
+            }
+            .padding(.leading, 7)
+            .padding(.trailing, 11)
+            .frame(height: 42)
+            .background(Color.poopCream.opacity(0.96), in: Capsule())
+            .shadow(color: Color.poopAccent.opacity(0.12), radius: 8, y: 4)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(ProfileSwitcherButtonStyle())
+        .accessibilityLabel("当前孩子 \(nickname)，点按切换")
+        .animation(.easeOut(duration: 0.18), value: activeProfileID)
     }
 
     private func amountSelector(height: CGFloat) -> some View {
@@ -372,7 +460,33 @@ struct TodayCheckInView: View {
     }
 
     private var nickname: String {
-        ProfileStore.cleanNickname(childNickname)
+        ProfileStore.cleanNickname(activeProfile?.nickname ?? childNickname)
+    }
+
+    private func requestProfileSwitch(_ profile: ChildProfile) {
+        guard profile.id != activeProfile?.id else { return }
+
+        if todayRecord == nil, viewModel.hasPreselection {
+            pendingProfileSwitch = profile
+            Haptics.play(.soft)
+        } else {
+            activateProfile(profile)
+        }
+    }
+
+    private func activateProfile(_ profile: ChildProfile) {
+        cleanRitualPresentationTask?.cancel()
+        activeFlush = nil
+        activeCleanRitual = nil
+        pendingStompGameSession = nil
+        activeStompGameSession = nil
+        pendingProfileSwitch = nil
+        holdProgress = 0
+        viewModel.unlockedAchievement = nil
+
+        childNickname = ProfileStore.cleanNickname(profile.nickname)
+        activeProfileID = profile.id
+        InteractionFeedback.play(sound: .tap, haptic: .light)
     }
 
     private func resultMessage(for record: PoopRecord) -> String {
@@ -537,6 +651,52 @@ private struct TodayLayoutMetrics {
         resultMascotHeight = min(resultHeroHeight * 0.82, compact ? 138 : 174)
         summaryHeight = min(max(availableHeight * 0.14, 72), compact ? 90 : 108)
         miniDataHeight = min(max(availableHeight * 0.195, 108), compact ? 128 : 156)
+    }
+}
+
+private struct ProfileIdentityMark: View {
+    let profileID: String
+    let nickname: String
+
+    private var initial: String {
+        let cleaned = ProfileStore.cleanNickname(nickname)
+        return String(cleaned.prefix(1))
+    }
+
+    private var tint: Color {
+        let palette: [Color] = [.poopAccent, .orange, .pink, .cyan, .mint]
+        let index = profileID.unicodeScalars.reduce(0) { partialResult, scalar in
+            (partialResult * 31 + Int(scalar.value)) % palette.count
+        }
+        return palette[index]
+    }
+
+    var body: some View {
+        Circle()
+            .fill(tint.gradient)
+            .overlay {
+                Text(initial)
+                    .font(.system(size: 13, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .minimumScaleFactor(0.7)
+            }
+            .overlay {
+                Circle()
+                    .stroke(.white.opacity(0.82), lineWidth: 1.2)
+            }
+            .shadow(color: tint.opacity(0.22), radius: 4, y: 2)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct ProfileSwitcherButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
+            .opacity(configuration.isPressed ? 0.88 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
