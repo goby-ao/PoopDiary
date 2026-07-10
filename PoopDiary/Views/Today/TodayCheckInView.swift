@@ -47,10 +47,11 @@ struct TodayCheckInView: View {
         .sheet(isPresented: $showingFeedbackSettings) {
             FeedbackSettingsView()
         }
-        .fullScreenCover(item: $activeStompGameSession) { session in
+        .fullScreenCover(item: $activeStompGameSession, onDismiss: {
+            activeStompGameSession = nil
+        }) { session in
             PoopStompGameView(session: session) { result in
-                PoopStompGameGate.recordResult(result, for: session)
-                activeStompGameSession = nil
+                PoopStompGameProgressStore.finalize(result, for: session)
             }
         }
         .onAppear {
@@ -89,9 +90,13 @@ struct TodayCheckInView: View {
                             self.activeFlush = nil
                         }
 
-                        if activeFlush.didPoop, savedRecord != nil, viewModel.errorMessage == nil {
+                        if savedRecord != nil, viewModel.errorMessage == nil {
                             prepareStompGameSession()
-                            scheduleCleanRitual(for: activeFlush)
+                            if activeFlush.didPoop {
+                                scheduleCleanRitual(for: activeFlush)
+                            } else {
+                                presentPendingStompGame()
+                            }
                         }
                     }
                     .transition(.opacity)
@@ -248,11 +253,16 @@ struct TodayCheckInView: View {
 
             Spacer(minLength: metrics.gap)
 
-            TodayMiniDataCard(
-                weekCount: currentWeekCheckInCount(),
-                distribution: statsViewModel.amountDistribution(records: profileRecords, days: 7)
-            )
-            .frame(height: metrics.miniDataHeight)
+            if pendingStompGameSession != nil {
+                TodayGameChallengeButton(action: presentPendingStompGame)
+                    .frame(height: metrics.miniDataHeight)
+            } else {
+                TodayMiniDataCard(
+                    weekCount: currentWeekCheckInCount(),
+                    distribution: statsViewModel.amountDistribution(records: profileRecords, days: 7)
+                )
+                .frame(height: metrics.miniDataHeight)
+            }
 
             Spacer(minLength: metrics.gap)
         }
@@ -396,6 +406,7 @@ struct TodayCheckInView: View {
 
     private func syncTodayState(preserveDraft: Bool = true) {
         viewModel.loadToday(profileID: activeProfileID, in: modelContext, preserveDraft: preserveDraft)
+        prepareStompGameSession()
     }
 
     private func beginFlushChoreography() {
@@ -464,7 +475,6 @@ struct TodayCheckInView: View {
         guard let session = pendingStompGameSession else { return }
 
         pendingStompGameSession = nil
-        PoopStompGameGate.markPlayed(session)
         activeStompGameSession = session
     }
 
@@ -1292,6 +1302,50 @@ private struct TodayMiniDataCard: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+}
+
+private struct TodayGameChallengeButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            InteractionFeedback.play(sound: .tap, haptic: .medium)
+            action()
+        } label: {
+            HStack(spacing: 15) {
+                Image(systemName: "gamecontroller.fill")
+                    .font(.system(size: 27, weight: .black))
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
+                    .background(.white.opacity(0.18), in: Circle())
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("开始今日清扫挑战")
+                        .font(.system(size: 19, weight: .black, design: .rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    Text("点击落脚 · 三波挑战 · 每天一次")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.84))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
+
+                Spacer(minLength: 6)
+
+                Image(systemName: "chevron.right.circle.fill")
+                    .font(.system(size: 26, weight: .black))
+            }
+            .padding(.horizontal, 18)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .foregroundStyle(.white)
+            .background(Color.poopAccent.gradient, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .shadow(color: Color.poopAccent.opacity(0.24), radius: 14, y: 8)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("开始今日清扫挑战，点击落脚，三波挑战，每天一次")
     }
 }
 

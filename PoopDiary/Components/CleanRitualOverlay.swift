@@ -227,7 +227,7 @@ private struct CleanRitualDoneView: View {
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
 
-                Text(unlocksStompGame ? "今天有一局 3 分钟踩便便挑战。" : "今日所有烦恼已清空，明天又是愉快的一天。")
+                Text(unlocksStompGame ? "今天有一局约 50 秒踩便便挑战。" : "今日所有烦恼已清空，明天又是愉快的一天。")
                     .font(.system(size: isLarge ? 22 : 18, weight: .bold, design: .rounded))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
