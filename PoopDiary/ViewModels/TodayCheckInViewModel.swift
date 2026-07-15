@@ -63,14 +63,17 @@ final class TodayCheckInViewModel {
         Haptics.play(.soft)
     }
 
-    func resetTodayRecord(profileID: String, in context: ModelContext) {
+    @discardableResult
+    func resetTodayRecord(profileID: String, in context: ModelContext) -> Bool {
         do {
             try PoopRecordStore.deleteRecord(on: .now, profileID: profileID, in: context)
             resetSelection()
             SoundManager.shared.play(.tap)
             errorMessage = nil
+            return true
         } catch {
             errorMessage = "重置失败，请再试一次"
+            return false
         }
     }
 

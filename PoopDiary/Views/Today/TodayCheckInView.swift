@@ -36,6 +36,15 @@ struct TodayCheckInView: View {
         profileRecords.first { $0.dayKey == currentDayKey }
     }
 
+    private var displayedPoopStreak: Int {
+        if todayRecord == nil {
+            let yesterday = Calendar.poopDiary.addingDays(-1, to: Date.now)
+            return statsViewModel.currentPoopStreak(records: profileRecords, through: yesterday)
+        }
+
+        return statsViewModel.currentPoopStreak(records: profileRecords)
+    }
+
     var body: some View {
         GeometryReader { proxy in
             content(proxy: proxy)
@@ -162,37 +171,64 @@ struct TodayCheckInView: View {
     @ViewBuilder
     private func content(proxy: GeometryProxy) -> some View {
         let metrics = TodayLayoutMetrics(proxy: proxy)
+        let page = VStack(spacing: 0) {
+            header(record: todayRecord)
+                .frame(height: metrics.headerHeight)
+
+            Color.clear
+                .frame(height: metrics.headerStreakGap)
+
+            PoopStreakBadge(
+                days: displayedPoopStreak,
+                hasTodayRecord: todayRecord != nil,
+                didPoopToday: todayRecord?.didPoop == true
+            )
+            .frame(height: metrics.streakHeight)
+
+            Spacer(minLength: metrics.gap)
+
+            if let todayRecord {
+                completedContent(record: todayRecord, metrics: metrics)
+                    .transition(.asymmetric(insertion: .scale(scale: 0.96).combined(with: .opacity), removal: .opacity))
+            } else {
+                checkInContent(metrics: metrics)
+                    .transition(.asymmetric(insertion: .opacity, removal: .scale(scale: 0.96).combined(with: .opacity)))
+            }
+        }
+        let minimumHeight = metrics.minimumContentHeight(hasTodayRecord: todayRecord != nil)
 
         ZStack {
             background
 
-            VStack(spacing: 0) {
-                header(record: todayRecord)
-                    .frame(height: metrics.headerHeight)
-
-                Spacer(minLength: metrics.gap)
-
-                if let todayRecord {
-                    completedContent(record: todayRecord, metrics: metrics)
-                        .transition(.asymmetric(insertion: .scale(scale: 0.96).combined(with: .opacity), removal: .opacity))
-                } else {
-                    checkInContent(metrics: metrics)
-                        .transition(.asymmetric(insertion: .opacity, removal: .scale(scale: 0.96).combined(with: .opacity)))
+            if minimumHeight > proxy.size.height {
+                ScrollView(.vertical) {
+                    page
+                        .padding(.horizontal, metrics.horizontalPadding)
+                        .padding(.top, metrics.topPadding)
+                        .padding(.bottom, metrics.bottomPadding)
+                        .frame(maxWidth: .infinity)
                 }
+                .scrollIndicators(.hidden)
+            } else {
+                page
+                    .padding(.horizontal, metrics.horizontalPadding)
+                    .padding(.top, metrics.topPadding)
+                    .padding(.bottom, metrics.bottomPadding)
+                    .frame(width: proxy.size.width, height: proxy.size.height)
             }
-            .padding(.horizontal, metrics.horizontalPadding)
-            .padding(.top, metrics.topPadding)
-            .padding(.bottom, metrics.bottomPadding)
-            .frame(width: proxy.size.width, height: proxy.size.height)
         }
     }
 
     private func checkInContent(metrics: TodayLayoutMetrics) -> some View {
         VStack(spacing: 0) {
+            Color.clear
+                .frame(height: metrics.checkInTopGap)
+
             MascotStage(
                 mood: viewModel.mood,
                 bounceTrigger: viewModel.rewardTrigger,
-                height: metrics.mascotHeight
+                height: metrics.mascotHeight,
+                visualOffset: metrics.mascotVisualOffset
             ) {
                 viewModel.tapMascot(profileID: activeProfileID, in: modelContext)
             }
@@ -206,12 +242,13 @@ struct TodayCheckInView: View {
             }
             .frame(height: metrics.mascotHeight)
 
-            Spacer(minLength: metrics.gap)
+            Color.clear
+                .frame(height: metrics.mascotChoiceGap)
 
             HStack(spacing: metrics.buttonGap) {
                 CheckInChoiceButton(
                     title: "拉了",
-                    emoji: "💩",
+                    icon: .emoji("💩"),
                     isSelected: viewModel.didPoop == true,
                     tint: .poopAccent,
                     height: metrics.choiceHeight
@@ -221,7 +258,7 @@ struct TodayCheckInView: View {
 
                 CheckInChoiceButton(
                     title: "没拉",
-                    emoji: "😴",
+                    icon: .sleepyPoop,
                     isSelected: viewModel.didPoop == false,
                     tint: .mint,
                     height: metrics.choiceHeight
@@ -231,13 +268,15 @@ struct TodayCheckInView: View {
             }
             .frame(height: metrics.choiceHeight)
 
-            Spacer(minLength: metrics.gap)
+            Color.clear
+                .frame(height: metrics.controlGap)
 
             amountSelector(height: metrics.amountHeight)
                 .opacity(viewModel.didPoop == true ? 1 : 0.42)
                 .frame(height: metrics.amountHeight)
 
-            Spacer(minLength: metrics.gap)
+            Color.clear
+                .frame(height: metrics.amountConfirmGap)
 
             checkInHint
                 .frame(height: metrics.footerHeight)
@@ -265,8 +304,8 @@ struct TodayCheckInView: View {
 
             HStack(spacing: metrics.buttonGap) {
                 TodayMetricTile(
-                    title: "连续打卡",
-                    value: "\(statsViewModel.currentStreak(records: profileRecords)) 天",
+                    title: "连续拉粑粑",
+                    value: "\(displayedPoopStreak) 天",
                     systemImage: "flame.fill",
                     tint: .orange
                 )
@@ -346,49 +385,60 @@ struct TodayCheckInView: View {
                 Label("管理孩子档案…", systemImage: "person.2.fill")
             }
         } label: {
-            HStack(spacing: 8) {
-                ProfileIdentityMark(profileID: activeProfile?.id ?? activeProfileID, nickname: nickname)
-                    .frame(width: 28, height: 28)
-
+            HStack(spacing: 5) {
                 Text(nickname)
                     .font(.system(size: 20, weight: .black, design: .rounded))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
-                    .frame(maxWidth: 72, alignment: .leading)
+                    .frame(maxWidth: 78, alignment: .leading)
                     .contentTransition(.opacity)
 
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 11, weight: .black))
-                    .foregroundStyle(Color.poopAccent)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .opacity(profiles.count > 1 ? 0.46 : 0.26)
                     .accessibilityHidden(true)
             }
-            .padding(.leading, 7)
-            .padding(.trailing, 11)
-            .frame(height: 42)
-            .background(Color.poopCream.opacity(0.96), in: Capsule())
-            .shadow(color: Color.poopAccent.opacity(0.12), radius: 8, y: 4)
-            .contentShape(Capsule())
+            .padding(.horizontal, 2)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
         }
         .buttonStyle(ProfileSwitcherButtonStyle())
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 16)
+                .onEnded(handleProfileSwipe)
+        )
         .accessibilityLabel("当前孩子 \(nickname)，点按切换")
+        .accessibilityHint("点按打开孩子列表，上下滑动可快速切换")
+        .accessibilityAction(named: Text("下一个孩子")) {
+            switchProfile(by: 1)
+        }
+        .accessibilityAction(named: Text("上一个孩子")) {
+            switchProfile(by: -1)
+        }
         .animation(.easeOut(duration: 0.18), value: activeProfileID)
     }
 
     private func amountSelector(height: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let verticalPadding: CGFloat = 8
+        let labelHeight: CGFloat = 18
+        let buttonHeight = max(40, height - verticalPadding * 2 - labelHeight - 6)
+
+        return VStack(alignment: .leading, spacing: 6) {
             Text(viewModel.didPoop == true ? "今天的量" : "选择「拉了」后选量")
                 .font(.system(.subheadline, design: .rounded).weight(.bold))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
+                .frame(height: labelHeight)
 
             HStack(spacing: 8) {
                 ForEach(PoopAmount.checkInChoices) { amount in
                     AmountButton(
                         amount: amount,
                         isSelected: viewModel.didPoop == true && viewModel.amount == amount,
-                        height: max(46, height - 36)
+                        height: buttonHeight
                     ) {
                         // 量按钮自己兜底：即使用户刚点完「拉了」立刻点量，
                         // 也不会被外层 disabled 状态吞掉点击。
@@ -401,8 +451,11 @@ struct TodayCheckInView: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.vertical, verticalPadding)
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     private var checkInHint: some View {
@@ -472,6 +525,25 @@ struct TodayCheckInView: View {
         } else {
             activateProfile(profile)
         }
+    }
+
+    private func handleProfileSwipe(_ value: DragGesture.Value) {
+        let verticalDistance = value.translation.height
+        let horizontalDistance = value.translation.width
+
+        guard abs(verticalDistance) >= 24,
+              abs(verticalDistance) > abs(horizontalDistance) * 1.2 else { return }
+
+        switchProfile(by: verticalDistance < 0 ? 1 : -1)
+    }
+
+    private func switchProfile(by offset: Int) {
+        guard profiles.count > 1 else { return }
+
+        let currentProfileID = activeProfile?.id ?? activeProfileID
+        let currentIndex = profiles.firstIndex { $0.id == currentProfileID } ?? 0
+        let nextIndex = (currentIndex + offset + profiles.count) % profiles.count
+        requestProfileSwitch(profiles[nextIndex])
     }
 
     private func activateProfile(_ profile: ChildProfile) {
@@ -551,7 +623,7 @@ struct TodayCheckInView: View {
         cleanRitualPresentationTask?.cancel()
         holdProgress = 0
 
-        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+        _ = withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
             viewModel.resetTodayRecord(profileID: activeProfileID, in: modelContext)
         }
     }
@@ -621,12 +693,19 @@ private struct TodayLayoutMetrics {
     let topPadding: CGFloat
     let bottomPadding: CGFloat
     let gap: CGFloat
+    let headerStreakGap: CGFloat
+    let checkInTopGap: CGFloat
+    let mascotChoiceGap: CGFloat
+    let controlGap: CGFloat
+    let amountConfirmGap: CGFloat
     let buttonGap: CGFloat
     let headerHeight: CGFloat
     let mascotHeight: CGFloat
+    let mascotVisualOffset: CGFloat
     let choiceHeight: CGFloat
     let amountHeight: CGFloat
     let footerHeight: CGFloat
+    let streakHeight: CGFloat
     let resultHeroHeight: CGFloat
     let resultMascotHeight: CGFloat
     let summaryHeight: CGFloat
@@ -635,57 +714,43 @@ private struct TodayLayoutMetrics {
     init(proxy: GeometryProxy) {
         let safeInsets = proxy.safeAreaInsets
         let availableHeight = max(proxy.size.height - safeInsets.top - safeInsets.bottom, 430)
-        let compact = proxy.size.width <= 375 || availableHeight < 560
+        let compact = proxy.size.width <= 375 || availableHeight < 590
 
         horizontalPadding = compact ? 14 : 20
         topPadding = max(6, safeInsets.top * 0.18)
         bottomPadding = max(8, safeInsets.bottom * 0.18)
-        gap = min(max(availableHeight * 0.018, 6), 14)
+        gap = min(max(availableHeight * 0.012, 6), 10)
+        headerStreakGap = compact ? 52 : 88
+        checkInTopGap = compact ? 0 : 4
+        mascotChoiceGap = compact ? 24 : 28
+        controlGap = compact ? 5 : 6
+        amountConfirmGap = compact ? 18 : 22
         buttonGap = compact ? 10 : 14
-        headerHeight = min(max(availableHeight * 0.13, 62), compact ? 78 : 92)
-        mascotHeight = min(max(availableHeight * 0.28, 132), compact ? 168 : 214)
-        choiceHeight = min(max(availableHeight * 0.14, 68), compact ? 88 : 112)
-        amountHeight = min(max(availableHeight * 0.14, 74), compact ? 94 : 116)
-        footerHeight = min(max(availableHeight * 0.12, 68), compact ? 82 : 96)
+        headerHeight = min(max(availableHeight * 0.13, 62), compact ? 76 : 88)
+        choiceHeight = min(max(availableHeight * 0.115, 64), compact ? 76 : 90)
+        amountHeight = min(max(availableHeight * 0.12, 82), compact ? 88 : 96)
+        footerHeight = min(max(availableHeight * 0.11, 68), compact ? 80 : 92)
+        streakHeight = compact ? 50 : 56
+        let usableHeight = availableHeight - topPadding - bottomPadding
+        let fixedCheckInHeight = headerHeight + headerStreakGap + streakHeight + gap + checkInTopGap + mascotChoiceGap + choiceHeight + controlGap + amountHeight + amountConfirmGap + footerHeight
+        let remainingMascotHeight = usableHeight - fixedCheckInHeight
+        mascotHeight = min(max(remainingMascotHeight, 126), compact ? 168 : 188)
+        mascotVisualOffset = compact ? -14 : -22
         resultHeroHeight = min(max(availableHeight * 0.305, 146), compact ? 178 : 218)
         resultMascotHeight = min(resultHeroHeight * 0.82, compact ? 138 : 174)
         summaryHeight = min(max(availableHeight * 0.14, 72), compact ? 90 : 108)
         miniDataHeight = min(max(availableHeight * 0.195, 108), compact ? 128 : 156)
     }
-}
 
-private struct ProfileIdentityMark: View {
-    let profileID: String
-    let nickname: String
+    func minimumContentHeight(hasTodayRecord: Bool) -> CGFloat {
+        let sharedHeight = topPadding + headerHeight + headerStreakGap + streakHeight + gap + bottomPadding
 
-    private var initial: String {
-        let cleaned = ProfileStore.cleanNickname(nickname)
-        return String(cleaned.prefix(1))
-    }
-
-    private var tint: Color {
-        let palette: [Color] = [.poopAccent, .orange, .pink, .cyan, .mint]
-        let index = profileID.unicodeScalars.reduce(0) { partialResult, scalar in
-            (partialResult * 31 + Int(scalar.value)) % palette.count
+        if hasTodayRecord {
+            return sharedHeight + resultHeroHeight + gap + summaryHeight + gap + miniDataHeight + gap
         }
-        return palette[index]
-    }
 
-    var body: some View {
-        Circle()
-            .fill(tint.gradient)
-            .overlay {
-                Text(initial)
-                    .font(.system(size: 13, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
-                    .minimumScaleFactor(0.7)
-            }
-            .overlay {
-                Circle()
-                    .stroke(.white.opacity(0.82), lineWidth: 1.2)
-            }
-            .shadow(color: tint.opacity(0.22), radius: 4, y: 2)
-            .accessibilityHidden(true)
+        return sharedHeight + checkInTopGap + mascotHeight + mascotChoiceGap + choiceHeight
+            + controlGap + amountHeight + amountConfirmGap + footerHeight
     }
 }
 
@@ -704,6 +769,7 @@ private struct MascotStage: View {
     let mood: MascotMood
     let bounceTrigger: UUID
     let height: CGFloat
+    let visualOffset: CGFloat
     let onTap: () -> Void
 
     var body: some View {
@@ -712,13 +778,168 @@ private struct MascotStage: View {
         PoopMascotView(mood: mood, bounceTrigger: bounceTrigger, onTap: onTap)
             .scaleEffect(scale)
             .frame(width: 220 * scale, height: 220 * scale)
+            .offset(y: visualOffset)
             .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
+    }
+}
+
+private struct PoopStreakBadge: View {
+    let days: Int
+    let hasTodayRecord: Bool
+    let didPoopToday: Bool
+
+    private var subtitle: String {
+        if days == 0 {
+            return hasTodayRecord ? "明天重新点亮也可以" : "今天来点亮第 1 天"
+        }
+
+        if didPoopToday {
+            return days >= 3 ? "小肚肚节奏稳稳的" : "今天也点亮啦"
+        }
+
+        return "今天还差一次点亮"
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            MiniPoopMark()
+                .frame(width: 42, height: 42)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("连续拉粑粑")
+                    .font(.system(.caption, design: .rounded).weight(.black))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Text(subtitle)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+
+            Spacer(minLength: 6)
+
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text("\(days)")
+                    .font(.system(size: 29, weight: .black, design: .rounded).monospacedDigit())
+                    .contentTransition(.numericText())
+
+                Text("天")
+                    .font(.system(.subheadline, design: .rounded).weight(.black))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.white.opacity(0.72), in: Capsule())
+            .foregroundStyle(Color.poopAccent)
+            .overlay {
+                Capsule()
+                    .stroke(Color.poopPrimary.opacity(0.18), lineWidth: 1)
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+        }
+        .padding(.leading, 10)
+        .padding(.trailing, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    LinearGradient(
+                        colors: [
+                            Color.poopLightGreen.opacity(0.34),
+                            .white.opacity(0.16)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.poopPrimary.opacity(0.16), lineWidth: 1)
+        }
+        .shadow(color: Color.poopAccent.opacity(0.08), radius: 10, y: 5)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("连续拉粑粑 \(days) 天，\(subtitle)")
+    }
+}
+
+private struct MiniPoopMark: View {
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.poopCream.opacity(0.92))
+                .overlay {
+                    Circle()
+                        .stroke(.white.opacity(0.8), lineWidth: 1)
+                }
+
+            Image(systemName: "sparkles")
+                .font(.system(size: 11, weight: .black))
+                .foregroundStyle(.yellow)
+                .offset(x: 12, y: -12)
+
+            ZStack(alignment: .bottom) {
+                Ellipse()
+                    .fill(markGradient)
+                    .frame(width: 27, height: 17)
+                    .offset(y: 9)
+
+                Ellipse()
+                    .fill(markGradient)
+                    .frame(width: 22, height: 16)
+                    .offset(y: -2)
+
+                Ellipse()
+                    .fill(markGradient)
+                    .frame(width: 16, height: 12)
+                    .offset(y: -11)
+
+                Circle()
+                    .fill(markGradient)
+                    .frame(width: 8, height: 8)
+                    .offset(x: 2, y: -19)
+
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(.black.opacity(0.78))
+                        .frame(width: 3.6, height: 3.6)
+
+                    Circle()
+                        .fill(.black.opacity(0.78))
+                        .frame(width: 3.6, height: 3.6)
+                }
+                .offset(y: 2)
+
+                Capsule()
+                    .stroke(.black.opacity(0.72), lineWidth: 1.4)
+                    .frame(width: 10, height: 5)
+                    .offset(y: 8)
+                    .mask(alignment: .bottom) {
+                        Rectangle()
+                            .frame(height: 3)
+                    }
+            }
+            .offset(y: 2)
+        }
+    }
+
+    private var markGradient: LinearGradient {
+        LinearGradient(
+            colors: [.poopBrownLight, .poopBrown],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
 }
 
 private struct CheckInChoiceButton: View {
     let title: String
-    let emoji: String
+    let icon: CheckInChoiceIcon
     let isSelected: Bool
     let tint: Color
     let height: CGFloat
@@ -729,8 +950,8 @@ private struct CheckInChoiceButton: View {
 
         Button(action: action) {
             HStack(spacing: 8) {
-                Text(emoji)
-                    .font(.system(size: min(height * 0.34, 34)))
+                iconView
+                    .frame(width: iconSlotSize, height: iconSlotSize)
 
                 Text(title)
                     .font(.system(size: min(height * 0.22, 22), weight: .black, design: .rounded))
@@ -754,6 +975,26 @@ private struct CheckInChoiceButton: View {
         .buttonStyle(.plain)
         .accessibilityLabel(title)
     }
+
+    @ViewBuilder
+    private var iconView: some View {
+        switch icon {
+        case let .emoji(emoji):
+            Text(emoji)
+                .font(.system(size: min(height * 0.34, 34)))
+        case .sleepyPoop:
+            SleepyPoopMark(maxSize: min(height * 0.66, 56))
+        }
+    }
+
+    private var iconSlotSize: CGFloat {
+        min(height * 0.48, 44)
+    }
+}
+
+private enum CheckInChoiceIcon {
+    case emoji(String)
+    case sleepyPoop
 }
 
 private struct AmountButton: View {
@@ -1330,6 +1571,7 @@ private struct TodayResultCard: View {
                     mood: record.didPoop ? .happy : .sleepy,
                     bounceTrigger: trigger,
                     height: mascotHeight,
+                    visualOffset: 0,
                     onTap: onMascotTap
                 )
                 .frame(width: mascotHeight * 1.04)

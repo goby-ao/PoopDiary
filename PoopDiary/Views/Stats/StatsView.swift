@@ -15,12 +15,24 @@ struct StatsView: View {
         records.filter { $0.profileID == activeProfileID }
     }
 
-    private var streak: Int {
-        viewModel.currentStreak(records: profileRecords)
+    private var longestPoopStreak: Int {
+        viewModel.longestPoopStreak(records: profileRecords)
     }
 
     private var recentStats: [DailyCheckInStat] {
         viewModel.recentCheckInStats(records: profileRecords)
+    }
+
+    private var recentSevenDaySummary: String {
+        let poopDays = recentStats.filter(\.didPoop).count
+        let restDays = recentStats.filter { $0.hasRecord && !$0.didPoop }.count
+        let missingDays = recentStats.filter { !$0.hasRecord }.count
+
+        if missingDays == 0 {
+            return "拉了 \(poopDays) 天，没拉 \(restDays) 天"
+        }
+
+        return "拉了 \(poopDays) 天，没拉 \(restDays) 天，未记录 \(missingDays) 天"
     }
 
     private var distribution: [AmountDistributionSlice] {
@@ -68,7 +80,7 @@ struct StatsView: View {
             Text("趣味数据")
                 .font(.system(size: 32, weight: .black, design: .rounded))
 
-            Text("\(ProfileStore.cleanNickname(childNickname))，\(streakMessage)")
+            Text("\(ProfileStore.cleanNickname(childNickname))，\(longestPoopMessage)")
                 .font(.headline)
                 .foregroundStyle(.secondary)
         }
@@ -76,26 +88,26 @@ struct StatsView: View {
 
     private var summaryGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
-            StatCard(title: "连续打卡", value: "\(streak)", systemImage: "flame.fill", tint: .orange) {
-                Text("天")
+            StatCard(title: "最长连续拉粑粑", value: "\(longestPoopStreak)", systemImage: "flame.fill", tint: .orange) {
+                Text("天 · 历史最佳")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
-            StatCard(title: "日均次数", value: String(format: "%.1f", viewModel.averagePoopPerDay(records: profileRecords)), systemImage: "divide.circle.fill", tint: .poopAccent) {
-                Text("近 30 天")
+            StatCard(title: "日均拉粑粑", value: String(format: "%.1f", viewModel.averagePoopPerDay(records: profileRecords)), systemImage: "divide.circle.fill", tint: .poopAccent) {
+                Text("近 30 天平均")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
-            StatCard(title: "规律达标率", value: "\(Int((viewModel.regularityRate(records: profileRecords) * 100).rounded()))%", systemImage: "checkmark.seal.fill", tint: .mint) {
-                Text("正常排便天数")
+            StatCard(title: "正常量占比", value: "\(Int((viewModel.regularityRate(records: profileRecords) * 100).rounded()))%", systemImage: "checkmark.seal.fill", tint: .mint) {
+                Text("近 30 天正常量")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
             StatCard(title: "最爱星期", value: viewModel.favoriteWeekday(records: profileRecords), systemImage: "calendar.circle.fill", tint: .pink) {
-                Text("历史频率最高")
+                Text("拉了最多的一天")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -104,19 +116,37 @@ struct StatsView: View {
 
     private var recentSevenDayChart: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("最近 7 天", systemImage: "chart.bar.fill")
-                .font(.headline)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                Label("最近 7 天拉粑粑", systemImage: "chart.bar.fill")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+
+                Text(recentSevenDaySummary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
 
             Chart(recentStats) { stat in
                 BarMark(
                     x: .value("日期", DateText.weekdayShort(stat.date)),
-                    y: .value("打卡", stat.checkedIn ? 1 : 0)
+                    y: .value("拉粑粑", stat.didPoop ? 1 : 0)
                 )
-                .foregroundStyle(stat.checkedIn ? Color.poopAccent.gradient : Color.gray.opacity(0.24).gradient)
+                .foregroundStyle(stat.didPoop ? Color.poopAccent.gradient : Color.gray.opacity(0.16).gradient)
                 .cornerRadius(8)
+
+                PointMark(
+                    x: .value("日期", DateText.weekdayShort(stat.date)),
+                    y: .value("状态", stat.didPoop ? 1 : 0)
+                )
+                .foregroundStyle(recentStatColor(stat))
+                .symbolSize(stat.hasRecord ? 64 : 34)
+                .annotation(position: stat.didPoop ? .top : .bottom) {
+                    Text(stat.statusEmoji)
+                        .font(.caption)
+                        .opacity(stat.hasRecord ? 1 : 0.5)
+                }
             }
-            .chartYScale(domain: 0...1)
+            .chartYScale(domain: -0.14...1.18)
             .chartYAxis(.hidden)
             .frame(height: 160)
         }
@@ -272,17 +302,25 @@ struct StatsView: View {
         }
     }
 
-    private var streakMessage: String {
-        switch streak {
+    private var longestPoopMessage: String {
+        switch longestPoopStreak {
         case 0:
-            return "今天完成一次打卡，火苗就会亮起来"
-        case 1..<3:
-            return "小火苗已经开始亮啦"
-        case 3..<7:
-            return "连续记录中，节奏不错"
+            return "先记录一次拉粑粑，小火苗就会亮起来"
+        case 1:
+            return "最长连续 1 天，开始点亮小火苗"
+        case 2..<7:
+            return "最长连续 \(longestPoopStreak) 天，节奏开始成形"
         default:
-            return "闪闪发光的一周正在发生"
+            return "最长连续 \(longestPoopStreak) 天，习惯很稳"
         }
+    }
+
+    private func recentStatColor(_ stat: DailyCheckInStat) -> Color {
+        if stat.didPoop {
+            return .poopAccent
+        }
+
+        return stat.hasRecord ? .mint : .gray.opacity(0.35)
     }
 
     private func scoreTitle(_ score: Int) -> String {

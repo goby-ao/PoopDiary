@@ -4,7 +4,14 @@ import Observation
 struct DailyCheckInStat: Identifiable {
     let id: String
     let date: Date
-    let checkedIn: Bool
+    let hasRecord: Bool
+    let didPoop: Bool
+    let amount: PoopAmount
+
+    var statusEmoji: String {
+        guard hasRecord else { return "·" }
+        return didPoop ? amount.emoji : "😴"
+    }
 }
 
 struct AmountDistributionSlice: Identifiable {
@@ -59,16 +66,53 @@ final class StatsViewModel {
         return streak
     }
 
+    func longestPoopStreak(records: [PoopRecord]) -> Int {
+        let calendar = stableDayCalendar
+        let sortedDays = Set(latestRecordsByDay(records).values
+            .filter(\.didPoop)
+            .map(\.dayKey))
+            .compactMap(stableDate(for:))
+            .sorted()
+
+        var longest = 0
+        var current = 0
+        var previousDay: Date?
+
+        for day in sortedDays {
+            if let previousDay, calendar.addingDays(1, to: previousDay) == day {
+                current += 1
+            } else {
+                current = 1
+            }
+
+            longest = max(longest, current)
+            previousDay = day
+        }
+
+        return longest
+    }
+
+    func currentPoopStreak(records: [PoopRecord], through date: Date = .now) -> Int {
+        streak(records: records, through: date) { $0.didPoop }
+    }
+
     func recentCheckInStats(records: [PoopRecord], days: Int = 7) -> [DailyCheckInStat] {
         let calendar = Calendar.poopDiary
-        let keys = Set(records.map(\.dayKey))
+        let recordsByDay = latestRecordsByDay(records)
         let today = calendar.startOfDay(for: .now)
         let start = calendar.addingDays(-(days - 1), to: today)
 
         return (0..<days).map { offset in
             let date = calendar.addingDays(offset, to: start)
             let key = calendar.dayKey(for: date)
-            return DailyCheckInStat(id: key, date: date, checkedIn: keys.contains(key))
+            let record = recordsByDay[key]
+            return DailyCheckInStat(
+                id: key,
+                date: date,
+                hasRecord: record != nil,
+                didPoop: record?.didPoop == true,
+                amount: record?.amount ?? .none
+            )
         }
     }
 
@@ -79,7 +123,9 @@ final class StatsViewModel {
 
     func regularityRate(records: [PoopRecord], days: Int = 30) -> Double {
         let recent = recordsInRecentDays(records: records, days: days)
-        return Double(recent.filter { $0.didPoop && $0.amount == .normal }.count) / Double(days)
+        let poopRecords = recent.filter(\.didPoop)
+        guard !poopRecords.isEmpty else { return 0 }
+        return Double(poopRecords.filter { $0.amount == .normal }.count) / Double(poopRecords.count)
     }
 
     func amountDistribution(records: [PoopRecord], days: Int = 30) -> [AmountDistributionSlice] {
@@ -197,9 +243,44 @@ final class StatsViewModel {
         return "第 \(best.key) 周"
     }
 
+    private func streak(records: [PoopRecord], through date: Date = .now, matches: (PoopRecord) -> Bool) -> Int {
+        let recordsByDay = latestRecordsByDay(records)
+        let calendar = Calendar.poopDiary
+        let today = calendar.startOfDay(for: date)
+        var count = 0
+
+        while true {
+            let date = calendar.addingDays(-count, to: today)
+            let key = calendar.dayKey(for: date)
+            guard let record = recordsByDay[key], matches(record) else { break }
+            count += 1
+        }
+
+        return count
+    }
+
     private func latestRecordsByDay(_ records: [PoopRecord]) -> [String: PoopRecord] {
         Dictionary(grouping: records, by: \.dayKey).compactMapValues { records in
             records.max { $0.createdAt < $1.createdAt }
         }
+    }
+
+    private var stableDayCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar
+    }
+
+    private func stableDate(for dayKey: String) -> Date? {
+        let values = dayKey.split(separator: "-").compactMap { Int($0) }
+        guard values.count == 3 else { return nil }
+
+        var components = DateComponents()
+        components.calendar = stableDayCalendar
+        components.timeZone = stableDayCalendar.timeZone
+        components.year = values[0]
+        components.month = values[1]
+        components.day = values[2]
+        return stableDayCalendar.date(from: components)
     }
 }

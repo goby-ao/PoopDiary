@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		01A000000000000000000001 /* PoopDiaryApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000001 /* PoopDiaryApp.swift */; };
+		01A000000000000000000029 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000029 /* PersistenceController.swift */; };
 		01A000000000000000000002 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000002 /* RootTabView.swift */; };
 		01A000000000000000000003 /* AppTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000003 /* AppTab.swift */; };
 		01A000000000000000000004 /* PoopAmount.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000004 /* PoopAmount.swift */; };
@@ -23,6 +24,7 @@
 		01A00000000000000000000E /* CelebrationOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B00000000000000000000E /* CelebrationOverlay.swift */; };
 		01A000000000000000000025 /* CleanRitualOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000025 /* CleanRitualOverlay.swift */; };
 		01A000000000000000000027 /* PoopStompGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000027 /* PoopStompGameView.swift */; };
+		01A000000000000000000028 /* SleepyPoopMark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000028 /* SleepyPoopMark.swift */; };
 		01A00000000000000000000F /* RewardStarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B00000000000000000000F /* RewardStarView.swift */; };
 		01A000000000000000000010 /* StatCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000010 /* StatCard.swift */; };
 		01A000000000000000000011 /* FeedbackState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000011 /* FeedbackState.swift */; };
@@ -51,6 +53,7 @@
 /* Begin PBXFileReference section */
 		01B000000000000000000000 /* PoopDiary.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PoopDiary.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		01B000000000000000000001 /* PoopDiaryApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoopDiaryApp.swift; sourceTree = "<group>"; };
+		01B000000000000000000029 /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
 		01B000000000000000000002 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		01B000000000000000000003 /* AppTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTab.swift; sourceTree = "<group>"; };
 		01B000000000000000000004 /* PoopAmount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoopAmount.swift; sourceTree = "<group>"; };
@@ -66,6 +69,7 @@
 		01B00000000000000000000E /* CelebrationOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationOverlay.swift; sourceTree = "<group>"; };
 		01B000000000000000000025 /* CleanRitualOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanRitualOverlay.swift; sourceTree = "<group>"; };
 		01B000000000000000000027 /* PoopStompGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoopStompGameView.swift; sourceTree = "<group>"; };
+		01B000000000000000000028 /* SleepyPoopMark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepyPoopMark.swift; sourceTree = "<group>"; };
 		01B00000000000000000000F /* RewardStarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewardStarView.swift; sourceTree = "<group>"; };
 		01B000000000000000000010 /* StatCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatCard.swift; sourceTree = "<group>"; };
 		01B000000000000000000011 /* FeedbackState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackState.swift; sourceTree = "<group>"; };
@@ -128,6 +132,7 @@
 			isa = PBXGroup;
 			children = (
 				01B000000000000000000001 /* PoopDiaryApp.swift */,
+				01B000000000000000000029 /* PersistenceController.swift */,
 				01B000000000000000000002 /* RootTabView.swift */,
 				01B000000000000000000003 /* AppTab.swift */,
 			);
@@ -171,6 +176,7 @@
 				01B00000000000000000000D /* PoopMascotView.swift */,
 				01B00000000000000000000E /* CelebrationOverlay.swift */,
 				01B000000000000000000025 /* CleanRitualOverlay.swift */,
+				01B000000000000000000028 /* SleepyPoopMark.swift */,
 				01B00000000000000000000F /* RewardStarView.swift */,
 				01B000000000000000000010 /* StatCard.swift */,
 				01B000000000000000000011 /* FeedbackState.swift */,
@@ -331,6 +337,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				01A000000000000000000001 /* PoopDiaryApp.swift in Sources */,
+				01A000000000000000000029 /* PersistenceController.swift in Sources */,
 				01A000000000000000000002 /* RootTabView.swift in Sources */,
 				01A000000000000000000003 /* AppTab.swift in Sources */,
 				01A000000000000000000004 /* PoopAmount.swift in Sources */,
@@ -346,6 +353,7 @@
 				01A00000000000000000000E /* CelebrationOverlay.swift in Sources */,
 				01A000000000000000000025 /* CleanRitualOverlay.swift in Sources */,
 				01A000000000000000000027 /* PoopStompGameView.swift in Sources */,
+				01A000000000000000000028 /* SleepyPoopMark.swift in Sources */,
 				01A00000000000000000000F /* RewardStarView.swift in Sources */,
 				01A000000000000000000010 /* StatCard.swift in Sources */,
 				01A000000000000000000011 /* FeedbackState.swift in Sources */,

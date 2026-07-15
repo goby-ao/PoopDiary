@@ -454,8 +454,18 @@ private struct PoopAmountMark: View {
         HStack(spacing: size * 0.18) {
             switch amount {
             case .large:
-                ExcitedLaughEye(size: size * 0.15)
-                ExcitedLaughEye(size: size * 0.15)
+                LaughSquintEye()
+                    .stroke(
+                        .black.opacity(0.82),
+                        style: StrokeStyle(lineWidth: max(2, size * 0.085), lineCap: .round)
+                    )
+                    .frame(width: size * 0.19, height: size * 0.12)
+                LaughSquintEye()
+                    .stroke(
+                        .black.opacity(0.82),
+                        style: StrokeStyle(lineWidth: max(2, size * 0.085), lineCap: .round)
+                    )
+                    .frame(width: size * 0.19, height: size * 0.12)
             default:
                 Circle()
                     .fill(.black.opacity(0.82))
@@ -479,140 +489,54 @@ private struct PoopAmountMark: View {
                 .stroke(.black.opacity(0.72), style: StrokeStyle(lineWidth: max(2, size * 0.08), lineCap: .round))
                 .frame(width: size * 0.34, height: size * 0.18)
         case .large:
-            Capsule()
-                .fill(.black.opacity(0.75))
-                .frame(width: size * 0.34, height: size * 0.24)
-                .overlay(alignment: .bottom) {
+            OpenLaughMouth()
+                .fill(.black.opacity(0.84))
+                .frame(width: size * 0.48, height: size * 0.34)
+                .overlay(alignment: .top) {
                     Capsule()
-                        .fill(.pink.opacity(0.9))
-                        .frame(width: size * 0.18, height: size * 0.10)
-                        .padding(.bottom, size * 0.02)
+                        .fill(.white.opacity(0.94))
+                        .frame(width: size * 0.30, height: max(1.5, size * 0.055))
+                        .padding(.top, size * 0.035)
+                }
+                .overlay(alignment: .bottom) {
+                    Ellipse()
+                        .fill(.pink.opacity(0.94))
+                        .frame(width: size * 0.27, height: size * 0.12)
+                        .padding(.bottom, size * 0.025)
                 }
         }
     }
 }
 
-private struct SleepyPoopMark: View {
-    let maxSize: CGFloat
-
-    private var size: CGFloat {
-        maxSize * 0.54
-    }
-
-    var body: some View {
-        ZStack {
-            sleepyBody
-            sleepyFace
-                .offset(y: size * 0.08)
-
-            SleepyZTrail(size: size)
-                .offset(x: size * 0.60, y: -size * 0.58)
-        }
-        .frame(width: maxSize, height: maxSize)
-        .opacity(0.9)
-        .accessibilityHidden(true)
-    }
-
-    private var sleepyBody: some View {
-        ZStack(alignment: .bottom) {
-            Ellipse()
-                .fill(sleepyGradient)
-                .frame(width: size * 0.88, height: size * 0.42)
-                .offset(y: size * 0.12)
-
-            Ellipse()
-                .fill(sleepyGradient)
-                .frame(width: size * 0.68, height: size * 0.38)
-                .offset(y: -size * 0.08)
-
-            Ellipse()
-                .fill(sleepyGradient)
-                .frame(width: size * 0.48, height: size * 0.32)
-                .offset(y: -size * 0.26)
-
-            Circle()
-                .fill(sleepyGradient)
-                .frame(width: size * 0.24, height: size * 0.24)
-                .offset(x: size * 0.04, y: -size * 0.42)
-        }
-    }
-
-    private var sleepyGradient: LinearGradient {
-        LinearGradient(
-            colors: [.poopBrownLight.opacity(0.58), .poopBrown.opacity(0.46)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-
-    private var sleepyFace: some View {
-        VStack(spacing: size * 0.06) {
-            HStack(spacing: size * 0.18) {
-                Capsule()
-                    .fill(.black.opacity(0.44))
-                    .frame(width: size * 0.13, height: max(1.5, size * 0.035))
-                Capsule()
-                    .fill(.black.opacity(0.44))
-                    .frame(width: size * 0.13, height: max(1.5, size * 0.035))
-            }
-
-            Capsule()
-                .fill(.black.opacity(0.4))
-                .frame(width: size * 0.20, height: max(1.5, size * 0.035))
-        }
-    }
-}
-
-private struct SleepyZTrail: View {
-    let size: CGFloat
-
-    var body: some View {
-        HStack(alignment: .bottom, spacing: size * 0.02) {
-            ForEach(0..<3, id: \.self) { index in
-                Text("Z")
-                    .font(.system(size: zSize(for: index), weight: .black, design: .rounded))
-                    .foregroundStyle(Color.poopBrown.opacity(0.52 + Double(index) * 0.08))
-                    .offset(y: -CGFloat(index) * size * 0.08)
-            }
-        }
-        .rotationEffect(.degrees(-18))
-    }
-
-    private func zSize(for index: Int) -> CGFloat {
-        size * (0.20 + CGFloat(index) * 0.08)
-    }
-}
-
-private struct ExcitedLaughEye: View {
-    let size: CGFloat
-
-    var body: some View {
-        Circle()
-            .fill(.black.opacity(0.82))
-            .frame(width: size, height: size)
-            .overlay(alignment: .topLeading) {
-                Circle()
-                    .fill(.white.opacity(0.9))
-                    .frame(width: max(2, size * 0.34), height: max(2, size * 0.34))
-                    .offset(x: size * 0.18, y: size * 0.18)
-            }
-            .overlay(alignment: .top) {
-                DownturnedLaughBrow()
-                    .stroke(.black.opacity(0.62), style: StrokeStyle(lineWidth: max(1.4, size * 0.18), lineCap: .round))
-                    .frame(width: size * 1.14, height: size * 0.46)
-                    .offset(y: -size * 0.58)
-            }
-    }
-}
-
-private struct DownturnedLaughBrow: Shape {
+private struct LaughSquintEye: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.maxY * 0.82))
+        path.move(to: CGPoint(x: rect.minX, y: rect.maxY * 0.88))
         path.addQuadCurve(
-            to: CGPoint(x: rect.maxX, y: rect.maxY * 0.82),
+            to: CGPoint(x: rect.maxX, y: rect.maxY * 0.88),
             control: CGPoint(x: rect.midX, y: rect.minY)
         )
+        return path
+    }
+}
+
+private struct OpenLaughMouth: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY + rect.height * 0.12))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX, y: rect.minY + rect.height * 0.12),
+            control: CGPoint(x: rect.midX, y: rect.minY + rect.height * 0.22)
+        )
+        path.addQuadCurve(
+            to: CGPoint(x: rect.midX, y: rect.maxY),
+            control: CGPoint(x: rect.maxX - rect.width * 0.08, y: rect.maxY)
+        )
+        path.addQuadCurve(
+            to: CGPoint(x: rect.minX, y: rect.minY + rect.height * 0.12),
+            control: CGPoint(x: rect.minX + rect.width * 0.08, y: rect.maxY)
+        )
+        path.closeSubpath()
         return path
     }
 }
