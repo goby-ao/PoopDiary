@@ -75,17 +75,22 @@ struct TodayCheckInView: View {
         }
         .onAppear {
             syncTodayState()
+            presentPendingRewardIfIdle()
             scheduleMidnightRefresh()
         }
         .onDisappear {
             midnightRefreshTask?.cancel()
             cleanRitualPresentationTask?.cancel()
+            cleanRitualPresentationTask = nil
         }
         .onChange(of: activeProfileID) { _, _ in
             syncTodayState(preserveDraft: false)
+            presentPendingRewardIfIdle()
         }
         .onChange(of: currentDayKey) { _, _ in
+            viewModel.clearRewards()
             syncTodayState(preserveDraft: false)
+            presentPendingRewardIfIdle()
         }
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
             currentDayKey = Calendar.poopDiary.dayKey(for: .now)
@@ -133,7 +138,7 @@ struct TodayCheckInView: View {
                             if activeFlush.didPoop {
                                 scheduleCleanRitual(for: activeFlush)
                             } else {
-                                presentPendingStompGame()
+                                presentNextRewardOrGame()
                             }
                         }
                     }
@@ -143,26 +148,20 @@ struct TodayCheckInView: View {
 
                 if let activeCleanRitual {
                     CleanRitualOverlay(request: activeCleanRitual) {
-                        let shouldPresentGame = activeCleanRitual.unlocksStompGame
                         withAnimation(.spring(response: 0.34, dampingFraction: 0.84)) {
                             self.activeCleanRitual = nil
                         }
-
-                        if shouldPresentGame {
-                            presentPendingStompGame()
-                        }
+                        presentNextRewardOrGame()
                     }
                     .transition(.opacity.combined(with: .scale(scale: 0.97)))
                     .zIndex(11)
                 }
 
-                if let achievement = viewModel.unlockedAchievement {
-                    AchievementUnlockOverlay(achievement: achievement) {
-                        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
-                            viewModel.unlockedAchievement = nil
-                        }
+                if let activeReward = viewModel.activeReward {
+                    CheckInRewardOverlay(reward: activeReward) {
+                        finishReward(activeReward)
                     }
-                    .zIndex(10)
+                    .zIndex(12)
                 }
             }
         }
@@ -230,7 +229,7 @@ struct TodayCheckInView: View {
                 height: metrics.mascotHeight,
                 visualOffset: metrics.mascotVisualOffset
             ) {
-                viewModel.tapMascot(profileID: activeProfileID, in: modelContext)
+                handleMascotTap()
             }
             .scaleEffect(1 - holdProgress * 0.035)
             .offset(y: holdProgress * 12)
@@ -292,7 +291,7 @@ struct TodayCheckInView: View {
                 trigger: viewModel.rewardTrigger,
                 onReset: resetTodayRecord
             ) {
-                viewModel.tapMascot(profileID: activeProfileID, in: modelContext)
+                handleMascotTap()
             }
             .overlay {
                 CelebrationOverlay(effect: record.didPoop ? viewModel.effect : .idle, trigger: viewModel.rewardTrigger)
@@ -322,7 +321,7 @@ struct TodayCheckInView: View {
             Spacer(minLength: metrics.gap)
 
             if pendingStompGameSession != nil {
-                TodayGameChallengeButton(action: presentPendingStompGame)
+                TodayGameChallengeButton(action: presentNextRewardOrGame)
                     .frame(height: metrics.miniDataHeight)
             } else {
                 TodayMiniDataCard(
@@ -548,13 +547,14 @@ struct TodayCheckInView: View {
 
     private func activateProfile(_ profile: ChildProfile) {
         cleanRitualPresentationTask?.cancel()
+        cleanRitualPresentationTask = nil
         activeFlush = nil
         activeCleanRitual = nil
         pendingStompGameSession = nil
         activeStompGameSession = nil
         pendingProfileSwitch = nil
         holdProgress = 0
-        viewModel.unlockedAchievement = nil
+        viewModel.clearRewards()
 
         childNickname = ProfileStore.cleanNickname(profile.nickname)
         activeProfileID = profile.id
@@ -616,16 +616,18 @@ struct TodayCheckInView: View {
     }
 
     private func resetTodayRecord() {
+        let didReset = withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+            viewModel.resetTodayRecord(profileID: activeProfileID, in: modelContext)
+        }
+        guard didReset else { return }
+
         activeFlush = nil
         activeCleanRitual = nil
         pendingStompGameSession = nil
         activeStompGameSession = nil
         cleanRitualPresentationTask?.cancel()
+        cleanRitualPresentationTask = nil
         holdProgress = 0
-
-        _ = withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
-            viewModel.resetTodayRecord(profileID: activeProfileID, in: modelContext)
-        }
     }
 
     private func scheduleCleanRitual(for flush: FlushChoreographyRequest) {
@@ -639,6 +641,7 @@ struct TodayCheckInView: View {
         cleanRitualPresentationTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(260))
             guard !Task.isCancelled else { return }
+            cleanRitualPresentationTask = nil
 
             withAnimation(.spring(response: 0.44, dampingFraction: 0.78)) {
                 activeCleanRitual = request
@@ -662,6 +665,59 @@ struct TodayCheckInView: View {
 
         pendingStompGameSession = nil
         activeStompGameSession = session
+    }
+
+    private func handleMascotTap() {
+        viewModel.tapMascot(profileID: activeProfileID, in: modelContext)
+        presentPendingRewardIfIdle()
+    }
+
+    private func presentPendingRewardIfIdle() {
+        guard activeFlush == nil,
+              activeCleanRitual == nil,
+              cleanRitualPresentationTask == nil,
+              viewModel.activeReward == nil,
+              activeStompGameSession == nil
+        else {
+            return
+        }
+
+        _ = withAnimation(.spring(response: 0.36, dampingFraction: 0.82)) {
+            viewModel.presentNextRewardIfAvailable()
+        }
+    }
+
+    private func presentNextRewardOrGame() {
+        guard activeFlush == nil,
+              activeCleanRitual == nil,
+              cleanRitualPresentationTask == nil,
+              viewModel.activeReward == nil,
+              activeStompGameSession == nil
+        else {
+            return
+        }
+
+        let didPresentReward = withAnimation(.spring(response: 0.36, dampingFraction: 0.82)) {
+            viewModel.presentNextRewardIfAvailable()
+        }
+        if !didPresentReward {
+            presentPendingStompGame()
+        }
+    }
+
+    private func finishReward(_ reward: CheckInRewardPresentation) {
+        guard viewModel.activeReward?.id == reward.id else { return }
+        let profileID = activeProfileID
+
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+            viewModel.completeReward(reward)
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(220))
+            guard activeProfileID == profileID else { return }
+            presentNextRewardOrGame()
+        }
     }
 
     private func scheduleMidnightRefresh() {

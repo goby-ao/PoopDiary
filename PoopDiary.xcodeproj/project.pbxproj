@@ -48,6 +48,11 @@
 		01A000000000000000000023 /* ImportRecordsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000023 /* ImportRecordsView.swift */; };
 		01A000000000000000000024 /* PoopBackupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000024 /* PoopBackupManager.swift */; };
 		01A000000000000000000026 /* PoopStompGameGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B000000000000000000026 /* PoopStompGameGate.swift */; };
+		01A00000000000000000002A /* PersonalRecordManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B00000000000000000002A /* PersonalRecordManager.swift */; };
+		01A00000000000000000002B /* CheckInRewardPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B00000000000000000002B /* CheckInRewardPresentation.swift */; };
+		01A00000000000000000002C /* PoopStreakCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B00000000000000000002C /* PoopStreakCalculator.swift */; };
+		01A00000000000000000002D /* CheckInRewardStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B00000000000000000002D /* CheckInRewardStore.swift */; };
+		01A00000000000000000002E /* Achievement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B00000000000000000002E /* Achievement.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -93,6 +98,11 @@
 		01B000000000000000000023 /* ImportRecordsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportRecordsView.swift; sourceTree = "<group>"; };
 		01B000000000000000000024 /* PoopBackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoopBackupManager.swift; sourceTree = "<group>"; };
 		01B000000000000000000026 /* PoopStompGameGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoopStompGameGate.swift; sourceTree = "<group>"; };
+		01B00000000000000000002A /* PersonalRecordManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalRecordManager.swift; sourceTree = "<group>"; };
+		01B00000000000000000002B /* CheckInRewardPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInRewardPresentation.swift; sourceTree = "<group>"; };
+		01B00000000000000000002C /* PoopStreakCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoopStreakCalculator.swift; sourceTree = "<group>"; };
+		01B00000000000000000002D /* CheckInRewardStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInRewardStore.swift; sourceTree = "<group>"; };
+		01B00000000000000000002E /* Achievement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Achievement.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -144,6 +154,8 @@
 			children = (
 				01B000000000000000000004 /* PoopAmount.swift */,
 				01B000000000000000000005 /* PoopRecord.swift */,
+				01B00000000000000000002B /* CheckInRewardPresentation.swift */,
+				01B00000000000000000002E /* Achievement.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -198,6 +210,9 @@
 				01B000000000000000000016 /* PoopRecordStore.swift */,
 				01B00000000000000000001B /* ProfileStore.swift */,
 				01B00000000000000000001C /* AchievementManager.swift */,
+				01B00000000000000000002A /* PersonalRecordManager.swift */,
+				01B00000000000000000002C /* PoopStreakCalculator.swift */,
+				01B00000000000000000002D /* CheckInRewardStore.swift */,
 				01B00000000000000000001D /* PoopImportParser.swift */,
 				01B00000000000000000001E /* CSVExporter.swift */,
 				01B00000000000000000001F /* NotificationManager.swift */,
@@ -342,6 +357,8 @@
 				01A000000000000000000003 /* AppTab.swift in Sources */,
 				01A000000000000000000004 /* PoopAmount.swift in Sources */,
 				01A000000000000000000005 /* PoopRecord.swift in Sources */,
+				01A00000000000000000002B /* CheckInRewardPresentation.swift in Sources */,
+				01A00000000000000000002E /* Achievement.swift in Sources */,
 				01A000000000000000000006 /* TodayCheckInViewModel.swift in Sources */,
 				01A000000000000000000007 /* HeatmapViewModel.swift in Sources */,
 				01A000000000000000000008 /* StatsViewModel.swift in Sources */,
@@ -365,6 +382,9 @@
 				01A000000000000000000019 /* FeedbackSettingsView.swift in Sources */,
 				01A00000000000000000001B /* ProfileStore.swift in Sources */,
 				01A00000000000000000001C /* AchievementManager.swift in Sources */,
+				01A00000000000000000002A /* PersonalRecordManager.swift in Sources */,
+				01A00000000000000000002C /* PoopStreakCalculator.swift in Sources */,
+				01A00000000000000000002D /* CheckInRewardStore.swift in Sources */,
 				01A00000000000000000001D /* PoopImportParser.swift in Sources */,
 				01A00000000000000000001E /* CSVExporter.swift in Sources */,
 				01A00000000000000000001F /* NotificationManager.swift in Sources */,

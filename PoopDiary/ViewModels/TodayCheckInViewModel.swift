@@ -12,12 +12,9 @@ final class TodayCheckInViewModel {
     var effect: PoopFeedbackEffect = .idle
     var rewardTrigger = UUID()
     var errorMessage: String?
-    var unlockedAchievement: AchievementProgress?
+    private(set) var activeReward: CheckInRewardPresentation?
+    private var rewardQueue: [CheckInRewardPresentation] = []
     private var mascotTapDates: [Date] = []
-
-    var hasCompletedToday: Bool {
-        didPoop != nil
-    }
 
     var hasPreselection: Bool {
         guard let didPoop else { return false }
@@ -67,6 +64,11 @@ final class TodayCheckInViewModel {
     func resetTodayRecord(profileID: String, in context: ModelContext) -> Bool {
         do {
             try PoopRecordStore.deleteRecord(on: .now, profileID: profileID, in: context)
+            CheckInRewardStore.clear(
+                profileID: profileID,
+                dayKey: Calendar.poopDiary.dayKey(for: .now)
+            )
+            clearRewards()
             resetSelection()
             SoundManager.shared.play(.tap)
             errorMessage = nil
@@ -84,7 +86,6 @@ final class TodayCheckInViewModel {
             } else if preserveDraft && hasPreselection {
                 // Tab 切回首页会触发 onAppear；如果孩子已经做了预选但还没长按确认，
                 // 不要因为本地暂时还没有记录就把预选清掉。
-                return
             } else {
                 didPoop = nil
                 amount = .none
@@ -92,6 +93,8 @@ final class TodayCheckInViewModel {
                 mood = .idle
                 effect = .idle
             }
+
+            restorePendingRewards(profileID: profileID, in: context)
         } catch {
             errorMessage = "读取今日记录失败"
         }
@@ -144,7 +147,13 @@ final class TodayCheckInViewModel {
         effect = .confetti
         rewardTrigger = UUID()
         InteractionFeedback.mascotCombo()
-        unlockAchievements(profileID: profileID, in: context, isComboTap: true)
+        let achievements = unlockAchievements(profileID: profileID, in: context, isComboTap: true)
+        enqueueReward(
+            profileID: profileID,
+            dayKey: Calendar.poopDiary.dayKey(for: now),
+            personalRecord: nil,
+            achievements: achievements
+        )
 
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(1.1))
@@ -166,10 +175,15 @@ final class TodayCheckInViewModel {
         playFeedback: Bool = true,
         in context: ModelContext
     ) -> PoopRecord? {
-        let shouldPlayReward = !hasCompletedToday
+        let saveDate = Date.now
+        let recordsBeforeSave = try? PoopRecordStore.fetchRecords(profileID: profileID, in: context)
+        let todayKey = Calendar.poopDiary.dayKey(for: saveDate)
+        let shouldEvaluateRewards = recordsBeforeSave?.contains { $0.dayKey == todayKey } == false
+        let previousBest = recordsBeforeSave.map(PoopStreakCalculator.longest(records:))
 
         do {
             let record = try PoopRecordStore.upsert(
+                date: saveDate,
                 profileID: profileID,
                 didPoop: didPoop,
                 amount: amount,
@@ -180,13 +194,33 @@ final class TodayCheckInViewModel {
                 InteractionFeedback.play(sound: sound, haptic: haptic)
             }
 
-            if shouldPlayReward {
+            if shouldEvaluateRewards {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
                     InteractionFeedback.reward()
                 }
             }
 
-            unlockAchievements(profileID: profileID, in: context)
+            let achievements = unlockAchievements(profileID: profileID, in: context)
+            var personalRecord: PersonalRecordEvent?
+
+            if shouldEvaluateRewards,
+               let previousBest,
+               let recordsAfterSave = try? PoopRecordStore.fetchRecords(profileID: profileID, in: context) {
+                personalRecord = PersonalRecordManager.makeEvent(
+                    profileID: profileID,
+                    dayKey: record.dayKey,
+                    didPoop: record.didPoop,
+                    previousBest: previousBest,
+                    recordsAfterSave: recordsAfterSave
+                )
+            }
+
+            enqueueReward(
+                profileID: profileID,
+                dayKey: record.dayKey,
+                personalRecord: personalRecord,
+                achievements: achievements
+            )
 
             errorMessage = nil
             return record
@@ -302,22 +336,107 @@ final class TodayCheckInViewModel {
         return feedbackMessage(didPoop: didPoop, amount: amount)
     }
 
-    private func unlockAchievements(profileID: String, in context: ModelContext, isComboTap: Bool = false) {
+    @discardableResult
+    func presentNextRewardIfAvailable() -> Bool {
+        guard activeReward == nil, !rewardQueue.isEmpty else { return false }
+        activeReward = rewardQueue.removeFirst()
+        return true
+    }
+
+    func completeReward(_ reward: CheckInRewardPresentation) {
+        guard activeReward?.id == reward.id else { return }
+        activeReward = nil
+        CheckInRewardStore.remove(reward)
+    }
+
+    func clearRewards() {
+        activeReward = nil
+        rewardQueue.removeAll()
+    }
+
+    private func restorePendingRewards(profileID: String, in context: ModelContext) {
+        guard let records = try? PoopRecordStore.fetchRecords(profileID: profileID, in: context) else { return }
+        let dayKey = Calendar.poopDiary.dayKey(for: .now)
+
+        for reward in CheckInRewardStore.pendingRewards(profileID: profileID, dayKey: dayKey) {
+            if let event = reward.personalRecord,
+               !PersonalRecordManager.isValid(
+                event,
+                profileID: profileID,
+                dayKey: dayKey,
+                records: records
+               ) {
+                CheckInRewardStore.remove(reward)
+                continue
+            }
+
+            enqueueReward(reward, shouldPersist: false)
+        }
+    }
+
+    private func enqueueReward(
+        profileID: String,
+        dayKey: String,
+        personalRecord: PersonalRecordEvent?,
+        achievements: [AchievementProgress]
+    ) {
+        guard personalRecord != nil || !achievements.isEmpty else { return }
+
+        let reward = CheckInRewardPresentation(
+            profileID: profileID,
+            dayKey: dayKey,
+            personalRecord: personalRecord,
+            achievements: achievements
+        )
+        enqueueReward(reward, shouldPersist: true)
+    }
+
+    private func enqueueReward(_ reward: CheckInRewardPresentation, shouldPersist: Bool) {
+        let alreadyQueued = activeReward?.id == reward.id || rewardQueue.contains { queued in
+            queued.id == reward.id
+                || (reward.personalRecord != nil && queued.personalRecord?.id == reward.personalRecord?.id)
+        }
+        guard !alreadyQueued else { return }
+
+        if shouldPersist, !CheckInRewardStore.append(reward) {
+            return
+        }
+        confirmRewardSources(reward)
+        rewardQueue.append(reward)
+        if !reward.achievements.isEmpty || reward.personalRecord?.isMajorMilestone == true {
+            effect = .confetti
+            rewardTrigger = UUID()
+        }
+    }
+
+    private func confirmRewardSources(_ reward: CheckInRewardPresentation) {
+        AchievementManager.markUnlocked(reward.achievements, profileID: reward.profileID)
+        if let personalRecord = reward.personalRecord {
+            PersonalRecordManager.markTriggered(personalRecord)
+        }
+    }
+
+    private func unlockAchievements(
+        profileID: String,
+        in context: ModelContext,
+        isComboTap: Bool = false
+    ) -> [AchievementProgress] {
         do {
             let unlocked: [AchievementProgress]
             if isComboTap {
-                unlocked = try AchievementManager.markComboTap(profileID: profileID, in: context)
+                unlocked = try AchievementManager.newlyUnlockableAfterComboTap(profileID: profileID, in: context)
             } else {
-                unlocked = try AchievementManager.newlyUnlocked(profileID: profileID, in: context)
+                unlocked = try AchievementManager.newlyUnlockable(profileID: profileID, in: context)
             }
 
-            if let achievement = unlocked.first {
-                unlockedAchievement = achievement
+            if !unlocked.isEmpty {
                 effect = .confetti
                 rewardTrigger = UUID()
             }
+            return unlocked
         } catch {
             // 成就失败不影响打卡主流程，只静默跳过。
+            return []
         }
     }
 }

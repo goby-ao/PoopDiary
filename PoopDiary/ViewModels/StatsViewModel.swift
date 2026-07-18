@@ -67,29 +67,7 @@ final class StatsViewModel {
     }
 
     func longestPoopStreak(records: [PoopRecord]) -> Int {
-        let calendar = stableDayCalendar
-        let sortedDays = Set(latestRecordsByDay(records).values
-            .filter(\.didPoop)
-            .map(\.dayKey))
-            .compactMap(stableDate(for:))
-            .sorted()
-
-        var longest = 0
-        var current = 0
-        var previousDay: Date?
-
-        for day in sortedDays {
-            if let previousDay, calendar.addingDays(1, to: previousDay) == day {
-                current += 1
-            } else {
-                current = 1
-            }
-
-            longest = max(longest, current)
-            previousDay = day
-        }
-
-        return longest
+        PoopStreakCalculator.longest(records: records)
     }
 
     func currentPoopStreak(records: [PoopRecord], through date: Date = .now) -> Int {
@@ -265,22 +243,4 @@ final class StatsViewModel {
         }
     }
 
-    private var stableDayCalendar: Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        return calendar
-    }
-
-    private func stableDate(for dayKey: String) -> Date? {
-        let values = dayKey.split(separator: "-").compactMap { Int($0) }
-        guard values.count == 3 else { return nil }
-
-        var components = DateComponents()
-        components.calendar = stableDayCalendar
-        components.timeZone = stableDayCalendar.timeZone
-        components.year = values[0]
-        components.month = values[1]
-        components.day = values[2]
-        return stableDayCalendar.date(from: components)
-    }
 }

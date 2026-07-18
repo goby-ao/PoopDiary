@@ -1,38 +1,6 @@
 import Foundation
 import SwiftData
 
-enum AchievementID: String, CaseIterable, Codable, Identifiable {
-    case streak3
-    case streak7
-    case streak30
-    case count10
-    case count100
-    case count365
-    case normal7
-    case largeDay
-    case earlyCheckIn
-    case comboTap
-
-    var id: String { rawValue }
-}
-
-struct AchievementProgress: Identifiable, Hashable {
-    let id: AchievementID
-    let title: String
-    let subtitle: String
-    let systemImage: String
-    let progress: Int
-    let target: Int
-
-    var isUnlocked: Bool {
-        progress >= target
-    }
-
-    var progressText: String {
-        "\(min(progress, target))/\(target)"
-    }
-}
-
 enum AchievementManager {
     static func progressList(records: [PoopRecord], profileID: String) -> [AchievementProgress] {
         let profileRecords = records.filter { $0.profileID == profileID }
@@ -61,6 +29,13 @@ enum AchievementManager {
 
     @MainActor
     static func newlyUnlocked(profileID: String, in context: ModelContext) throws -> [AchievementProgress] {
+        let unlocked = try newlyUnlockable(profileID: profileID, in: context)
+        markUnlocked(unlocked, profileID: profileID)
+        return unlocked
+    }
+
+    @MainActor
+    static func newlyUnlockable(profileID: String, in context: ModelContext) throws -> [AchievementProgress] {
         let records = try PoopRecordStore.fetchRecords(profileID: profileID, in: context)
         let progress = progressList(records: records, profileID: profileID)
         let unlockedNow = Set(progress.filter(\.isUnlocked).map(\.id.rawValue))
@@ -68,15 +43,29 @@ enum AchievementManager {
         let newIDs = unlockedNow.subtracting(stored)
 
         guard !newIDs.isEmpty else { return [] }
-
-        saveUnlockedIDs(stored.union(newIDs), profileID: profileID)
         return progress.filter { newIDs.contains($0.id.rawValue) }
+    }
+
+    static func markUnlocked(_ achievements: [AchievementProgress], profileID: String) {
+        guard !achievements.isEmpty else { return }
+        let stored = unlockedIDs(profileID: profileID)
+        let newIDs = achievements.map(\.id.rawValue)
+        saveUnlockedIDs(stored.union(newIDs), profileID: profileID)
     }
 
     @MainActor
     static func markComboTap(profileID: String, in context: ModelContext) throws -> [AchievementProgress] {
         UserDefaults.standard.set(true, forKey: comboTapKey(profileID: profileID))
         return try newlyUnlocked(profileID: profileID, in: context)
+    }
+
+    @MainActor
+    static func newlyUnlockableAfterComboTap(
+        profileID: String,
+        in context: ModelContext
+    ) throws -> [AchievementProgress] {
+        UserDefaults.standard.set(true, forKey: comboTapKey(profileID: profileID))
+        return try newlyUnlockable(profileID: profileID, in: context)
     }
 
     private static func item(
