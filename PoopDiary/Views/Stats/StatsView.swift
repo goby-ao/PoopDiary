@@ -15,8 +15,20 @@ struct StatsView: View {
         records.filter { $0.profileID == activeProfileID }
     }
 
+    private var longestPoopStreakPeriod: PoopStreakPeriod? {
+        viewModel.longestPoopStreakPeriod(records: profileRecords)
+    }
+
     private var longestPoopStreak: Int {
-        viewModel.longestPoopStreak(records: profileRecords)
+        longestPoopStreakPeriod?.dayCount ?? 0
+    }
+
+    private var longestLargeStreakPeriod: PoopStreakPeriod? {
+        viewModel.longestLargeStreakPeriod(records: profileRecords)
+    }
+
+    private var estimatedPoopWeight: PoopWeightEstimate? {
+        viewModel.estimatedPoopWeight(records: profileRecords)
     }
 
     private var recentStats: [DailyCheckInStat] {
@@ -52,6 +64,7 @@ struct StatsView: View {
             VStack(alignment: .leading, spacing: 22) {
                 header
                 summaryGrid
+                weightEstimateNote
                 recentSevenDayChart
                 distributionChart
                 trendChart
@@ -89,7 +102,21 @@ struct StatsView: View {
     private var summaryGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
             StatCard(title: "最长连续拉粑粑", value: "\(longestPoopStreak)", systemImage: "flame.fill", tint: .orange) {
-                Text("天 · 历史最佳")
+                streakCardDetail(
+                    period: longestPoopStreakPeriod,
+                    emptyText: "还没有拉粑粑记录"
+                )
+            }
+
+            StatCard(title: "最长连续“很多”", value: "\(longestLargeStreakPeriod?.dayCount ?? 0)", systemImage: "calendar.badge.clock", tint: .poopDeepGreen) {
+                streakCardDetail(
+                    period: longestLargeStreakPeriod,
+                    emptyText: "还没有“很多”记录"
+                )
+            }
+
+            StatCard(title: "累计拉粑粑", value: estimatedWeightValue, systemImage: "scalemass.fill", tint: .indigo) {
+                Text(estimatedPoopWeight == nil ? "记录拉粑粑后开始估算" : "斤 · 按记录趣味估算")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -112,6 +139,17 @@ struct StatsView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private var weightEstimateNote: some View {
+        Label {
+            Text("按少量 \(PoopAmount.small.estimatedWetWeightGrams) 克、正常 \(PoopAmount.normal.estimatedWetWeightGrams) 克、很多 \(PoopAmount.large.estimatedWetWeightGrams) 克累计；这只是趣味估算，不是实际称重或健康判断，未记录的日子不会计入。")
+        } icon: {
+            Image(systemName: "info.circle.fill")
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 4)
     }
 
     private var recentSevenDayChart: some View {
@@ -313,6 +351,28 @@ struct StatsView: View {
         default:
             return "最长连续 \(longestPoopStreak) 天，习惯很稳"
         }
+    }
+
+    private var estimatedWeightValue: String {
+        guard let estimatedPoopWeight else { return "—" }
+        return String(format: "≈%.1f", estimatedPoopWeight.jin)
+    }
+
+    private func streakCardDetail(
+        period: PoopStreakPeriod?,
+        emptyText: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("天 · 最长记录")
+                .font(.subheadline)
+
+            Text(period.map {
+                DateText.dayKeyRange(from: $0.startDayKey, through: $0.endDayKey)
+            } ?? emptyText)
+            .font(.caption)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .foregroundStyle(.secondary)
     }
 
     private func recentStatColor(_ stat: DailyCheckInStat) -> Color {

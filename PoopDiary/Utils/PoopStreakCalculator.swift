@@ -1,36 +1,79 @@
 import Foundation
 
+struct PoopStreakPeriod: Equatable {
+    let dayCount: Int
+    let startDayKey: String
+    let endDayKey: String
+}
+
 enum PoopStreakCalculator {
     static func longest(records: [PoopRecord]) -> Int {
-        let calendar = stableDayCalendar
-        let sortedDays = Set(latestRecordsByDay(records).values
-            .filter(\.didPoop)
-            .map(\.dayKey))
-            .compactMap(stableDate(for:))
+        calculateLongestPeriod(records: records, throughDayKey: nil) {
+            $0.didPoop
+        }?.dayCount ?? 0
+    }
+
+    static func longestPeriod(
+        records: [PoopRecord],
+        through date: Date = .now,
+        matching predicate: (PoopRecord) -> Bool
+    ) -> PoopStreakPeriod? {
+        calculateLongestPeriod(
+            records: records,
+            throughDayKey: PoopDayKey(Calendar.poopDiary.dayKey(for: date)),
+            matching: predicate
+        )
+    }
+
+    private static func calculateLongestPeriod(
+        records: [PoopRecord],
+        throughDayKey: PoopDayKey?,
+        matching predicate: (PoopRecord) -> Bool
+    ) -> PoopStreakPeriod? {
+        let calendar = PoopDayKey.stableCalendar
+        let sortedDays = latestRecordsByDay(records)
+            .compactMap { rawDayKey, record -> PoopDayKey? in
+                guard
+                    predicate(record),
+                    let dayKey = PoopDayKey(rawDayKey),
+                    throughDayKey.map({ dayKey <= $0 }) ?? true
+                else {
+                    return nil
+                }
+                return dayKey
+            }
             .sorted()
 
-        var longest = 0
+        var bestPeriod: PoopStreakPeriod?
         var current = 0
+        var currentStartDayKey: String?
         var previousDay: Date?
 
         for day in sortedDays {
-            if let previousDay, calendar.addingDays(1, to: previousDay) == day {
+            if let previousDay, calendar.addingDays(1, to: previousDay) == day.stableDate {
                 current += 1
             } else {
                 current = 1
+                currentStartDayKey = day.rawValue
             }
 
-            longest = max(longest, current)
-            previousDay = day
+            if current >= (bestPeriod?.dayCount ?? 0), let currentStartDayKey {
+                bestPeriod = PoopStreakPeriod(
+                    dayCount: current,
+                    startDayKey: currentStartDayKey,
+                    endDayKey: day.rawValue
+                )
+            }
+            previousDay = day.stableDate
         }
 
-        return longest
+        return bestPeriod
     }
 
     static func streakEnding(on dayKey: String, records: [PoopRecord]) -> Int {
         let recordsByDay = latestRecordsByDay(records)
-        let calendar = stableDayCalendar
-        guard var day = stableDate(for: dayKey) else { return 0 }
+        let calendar = PoopDayKey.stableCalendar
+        guard var day = PoopDayKey(dayKey)?.stableDate else { return 0 }
         var count = 0
 
         while true {
@@ -45,32 +88,20 @@ enum PoopStreakCalculator {
     }
 
     private static func latestRecordsByDay(_ records: [PoopRecord]) -> [String: PoopRecord] {
-        Dictionary(grouping: records, by: \.dayKey).compactMapValues { records in
-            records.max { $0.createdAt < $1.createdAt }
+        let keyedRecords = records.compactMap { record -> (dayKey: String, record: PoopRecord)? in
+            let rawDayKey = record.dayKey.isEmpty
+                ? Calendar.poopDiary.dayKey(for: record.date)
+                : record.dayKey
+            guard PoopDayKey(rawDayKey) != nil else { return nil }
+            return (rawDayKey, record)
+        }
+        return Dictionary(grouping: keyedRecords, by: \.dayKey).compactMapValues { entries in
+            entries.max { $0.record.createdAt < $1.record.createdAt }?.record
         }
     }
 
-    private static var stableDayCalendar: Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        return calendar
-    }
-
-    private static func stableDate(for dayKey: String) -> Date? {
-        let values = dayKey.split(separator: "-").compactMap { Int($0) }
-        guard values.count == 3 else { return nil }
-
-        var components = DateComponents()
-        components.calendar = stableDayCalendar
-        components.timeZone = stableDayCalendar.timeZone
-        components.year = values[0]
-        components.month = values[1]
-        components.day = values[2]
-        return stableDayCalendar.date(from: components)
-    }
-
     private static func stableDayKey(for date: Date) -> String {
-        let components = stableDayCalendar.dateComponents([.year, .month, .day], from: date)
+        let components = PoopDayKey.stableCalendar.dateComponents([.year, .month, .day], from: date)
         guard let year = components.year,
               let month = components.month,
               let day = components.day

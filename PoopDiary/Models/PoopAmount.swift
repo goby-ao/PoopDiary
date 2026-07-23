@@ -48,4 +48,18 @@ enum PoopAmount: String, Codable, CaseIterable, Identifiable {
             3
         }
     }
+
+    /// 仅用于趣味累计估算，不代表实际称重或健康判断。
+    var estimatedWetWeightGrams: Int {
+        switch self {
+        case .none:
+            0
+        case .small:
+            50
+        case .normal:
+            150
+        case .large:
+            200
+        }
+    }
 }

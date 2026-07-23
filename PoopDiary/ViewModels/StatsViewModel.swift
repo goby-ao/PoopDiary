@@ -70,6 +70,20 @@ final class StatsViewModel {
         PoopStreakCalculator.longest(records: records)
     }
 
+    func longestPoopStreakPeriod(records: [PoopRecord]) -> PoopStreakPeriod? {
+        PoopStreakCalculator.longestPeriod(records: records) { $0.didPoop }
+    }
+
+    func longestLargeStreakPeriod(records: [PoopRecord]) -> PoopStreakPeriod? {
+        PoopStreakCalculator.longestPeriod(records: records) {
+            $0.didPoop && $0.amount == .large
+        }
+    }
+
+    func estimatedPoopWeight(records: [PoopRecord]) -> PoopWeightEstimate? {
+        PoopWeightEstimator.estimate(records: records)
+    }
+
     func currentPoopStreak(records: [PoopRecord], through date: Date = .now) -> Int {
         streak(records: records, through: date) { $0.didPoop }
     }
